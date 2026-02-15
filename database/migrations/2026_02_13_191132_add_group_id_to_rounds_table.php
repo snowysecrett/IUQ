@@ -11,18 +11,26 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('rounds', function (Blueprint $table) {
-            $table->foreignId('group_id')->nullable()->after('round_template_id')->constrained()->nullOnDelete();
-        });
+        if (!Schema::hasColumn('rounds', 'group_id')) {
+            Schema::table('rounds', function (Blueprint $table) {
+                $table->unsignedBigInteger('group_id')
+                    ->nullable()
+                    ->after('round_template_id');
+            });
+        }
     }
+
+
 
     /**
      * Reverse the migrations.
      */
     public function down(): void
     {
-        Schema::table('rounds', function (Blueprint $table) {
-            $table->dropConstrainedForeignId('group_id');
-        });
+        if (Schema::hasColumn('rounds', 'group_id')) {
+            Schema::table('rounds', function (Blueprint $table) {
+                $table->dropColumn('group_id');
+            });
+        }
     }
 };
