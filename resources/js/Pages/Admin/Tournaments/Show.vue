@@ -917,10 +917,10 @@ const actionLabel = (rule) => rule.action_type === 'eliminate'
                         <option value="completed">completed</option>
                     </select>
                     <select v-model="round.phase" class="rounded border px-2 py-1 text-sm">
-                        <option value="lightning">lightning</option>
-                        <option value="buzzer_normal">buzzer_normal</option>
-                        <option value="buzzer_fever">buzzer_fever</option>
-                        <option value="buzzer_ultimate_fever">buzzer_ultimate_fever</option>
+                        <option value="lightning">lightning (必答)</option>
+                        <option value="buzzer_normal">buzzer normal (搶答)</option>
+                        <option value="buzzer_fever">buzzer fever</option>
+                        <option value="buzzer_ultimate_fever">buzzer ultimate fever</option>
                     </select>
                     <input v-model="round.teams_per_round" type="number" min="2" max="8" class="rounded border px-2 py-1 text-sm" />
                     <input v-model="round._default_score" type="number" min="0" class="rounded border px-2 py-1 text-sm" placeholder="Default score" />
@@ -932,36 +932,50 @@ const actionLabel = (rule) => rule.action_type === 'eliminate'
                     </select>
                     <input v-model="round._scheduled_start_at_local" type="datetime-local" class="rounded border px-2 py-1 text-sm" />
                     <input v-model="round.sort_order" type="number" class="rounded border px-2 py-1 text-sm" placeholder="Sort order" />
-                    <label class="rounded border px-2 py-1 text-sm md:col-span-2">
-                        <span class="mr-2">Enable Fever</span>
+                    <label class="inline-flex items-center justify-between rounded border px-2 py-1 text-sm md:col-span-1">
+                        <span class="mr-2">Fever</span>
                         <input v-model="round.has_fever" type="checkbox" />
                     </label>
-                    <label class="rounded border px-2 py-1 text-sm md:col-span-2">
-                        <span class="mr-2">Enable Ultimate Fever</span>
+                    <label class="inline-flex items-center justify-between rounded border px-2 py-1 text-sm md:col-span-1">
+                        <span class="mr-2">Ultimate</span>
                         <input v-model="round.has_ultimate_fever" type="checkbox" />
                     </label>
-                    <input
-                        v-model="round._lightning_score_deltas_text"
-                        class="rounded border px-2 py-1 text-sm md:col-span-2"
-                        placeholder="Lightning deltas (e.g. 20,10,-10)"
-                    />
-                    <input
-                        v-model="round._buzzer_normal_score_deltas_text"
-                        class="rounded border px-2 py-1 text-sm md:col-span-2"
-                        placeholder="Normal buzzer deltas (e.g. 20,10,-10)"
-                    />
-                    <input
-                        v-if="round.has_fever || round.has_ultimate_fever"
-                        v-model="round._buzzer_fever_score_deltas_text"
-                        class="rounded border px-2 py-1 text-sm md:col-span-2"
-                        placeholder="Fever deltas (e.g. 20,10,-10)"
-                    />
-                    <input
-                        v-if="round.has_ultimate_fever"
-                        v-model="round._buzzer_ultimate_score_deltas_text"
-                        class="rounded border px-2 py-1 text-sm md:col-span-2"
-                        placeholder="Ultimate fever deltas (e.g. 20,10,-10)"
-                    />
+                    <div class="rounded border bg-gray-50 p-2 text-xs text-gray-600 md:col-span-4">
+                        Score Delta Buttons: comma-separated values shown on the Control page for this phase.
+                        Example <code>20,10,-10</code> creates +20, +10, and -10 buttons.
+                    </div>
+                    <label class="block md:col-span-4">
+                        <div class="mb-1 text-xs font-semibold text-gray-700">Lightning Round Score Delta Buttons</div>
+                        <input
+                            v-model="round._lightning_score_deltas_text"
+                            class="w-full rounded border px-2 py-1 text-sm"
+                            placeholder="Example: 20,10,-10"
+                        />
+                    </label>
+                    <label class="block md:col-span-4">
+                        <div class="mb-1 text-xs font-semibold text-gray-700">Buzzer (Normal) Score Delta Buttons</div>
+                        <input
+                            v-model="round._buzzer_normal_score_deltas_text"
+                            class="w-full rounded border px-2 py-1 text-sm"
+                            placeholder="Example: 20,10,-10"
+                        />
+                    </label>
+                    <label v-if="round.has_fever || round.has_ultimate_fever" class="block md:col-span-4">
+                        <div class="mb-1 text-xs font-semibold text-gray-700">Buzzer (Fever) Score Delta Buttons</div>
+                        <input
+                            v-model="round._buzzer_fever_score_deltas_text"
+                            class="w-full rounded border px-2 py-1 text-sm"
+                            placeholder="Example: 20,10,-10"
+                        />
+                    </label>
+                    <label v-if="round.has_ultimate_fever" class="block md:col-span-4">
+                        <div class="mb-1 text-xs font-semibold text-gray-700">Buzzer (Ultimate Fever) Score Delta Buttons</div>
+                        <input
+                            v-model="round._buzzer_ultimate_score_deltas_text"
+                            class="w-full rounded border px-2 py-1 text-sm"
+                            placeholder="Example: 20,10,-10"
+                        />
+                    </label>
                     <div class="md:col-span-2 flex flex-wrap gap-2">
                         <button class="rounded border px-3 py-1 text-sm" @click="saveRoundDetails(round)">Save Round Details</button>
                         <button class="rounded border border-red-300 px-3 py-1 text-sm text-red-700" @click="deleteRound(round)">Delete Round</button>
