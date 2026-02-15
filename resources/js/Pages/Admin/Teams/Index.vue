@@ -47,7 +47,12 @@ const cancelEdit = () => {
 };
 
 const submitEdit = (teamId) => {
-    editForm.patch(route('admin.teams.update', teamId), {
+    editForm
+        .transform((data) => ({
+            ...data,
+            _method: 'patch',
+        }))
+        .post(route('admin.teams.update', teamId), {
         forceFormData: true,
         preserveScroll: true,
         onSuccess: () => {
@@ -79,7 +84,7 @@ const removeTeam = (team) => {
                 type="file"
                 accept="image/*"
                 class="rounded border px-2 py-1 md:col-span-2"
-                @input="form.icon_file = $event.target.files[0]"
+                @change="form.icon_file = $event.target.files[0]"
             />
             <div class="text-xs text-gray-500 md:col-span-4">Upload file will override URL if both are provided.</div>
             <button class="rounded border bg-gray-900 px-3 py-1 text-white md:col-span-4">Create Team</button>
@@ -145,7 +150,7 @@ const removeTeam = (team) => {
                                         type="file"
                                         accept="image/*"
                                         class="rounded border px-2 py-1 md:col-span-2"
-                                        @input="editForm.icon_file = $event.target.files[0]"
+                                        @change="editForm.icon_file = $event.target.files[0]"
                                     />
                                     <div class="text-xs text-gray-500 md:col-span-4">
                                         Upload file will override URL/path if both are provided.
