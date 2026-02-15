@@ -16,6 +16,7 @@ const page = usePage();
 const user = computed(() => page.props.auth?.user || null);
 const canManage = computed(() => !!user.value && ['admin', 'super_admin'].includes(user.value.role));
 const isSuperAdmin = computed(() => user.value?.role === 'super_admin');
+const homeHref = computed(() => user.value ? route('dashboard') : '/');
 </script>
 
 <template>
@@ -23,7 +24,7 @@ const isSuperAdmin = computed(() => user.value?.role === 'super_admin');
         <nav class="border-b border-gray-200 bg-white">
             <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3">
                 <div class="flex flex-wrap items-center gap-2">
-                    <Link :href="route('dashboard')" class="text-lg font-semibold">IUQ Scoring Site</Link>
+                    <Link :href="homeHref" class="text-lg font-semibold">IUQ Scoring Site</Link>
                     <Link v-if="canManage" :href="route('admin.tournaments.index')" class="rounded border px-2 py-1 text-sm">{{ t('tournaments') }}</Link>
                     <Link v-if="canManage" :href="route('admin.rounds.index')" class="rounded border px-2 py-1 text-sm">{{ t('rounds') }}</Link>
                     <Link v-if="canManage" :href="route('admin.teams.index')" class="rounded border px-2 py-1 text-sm">{{ t('teams') }}</Link>
