@@ -13,6 +13,7 @@ const props = defineProps({
 
 const page = usePage();
 const isSuperAdmin = computed(() => page.props.auth?.user?.role === 'super_admin');
+const isUsingRoundTemplate = computed(() => !!roundForm.round_template_id);
 
 const isTemplateModalOpen = ref(false);
 
@@ -191,18 +192,23 @@ const createRound = () => {
         ...data,
         round_template_id: data.round_template_id || null,
         group_id: data.group_id || null,
+        teams_per_round: data.round_template_id ? null : Number(data.teams_per_round),
         default_score: data.default_score === '' || data.default_score === null ? null : Number(data.default_score),
-        has_fever: !!data.has_fever || !!data.has_ultimate_fever,
-        has_ultimate_fever: !!data.has_ultimate_fever,
-        lightning_score_deltas: parseDeltas(data.lightning_score_deltas_text),
-        buzzer_normal_score_deltas: parseDeltas(data.buzzer_normal_score_deltas_text),
-        buzzer_fever_score_deltas: (data.has_fever || data.has_ultimate_fever)
-            ? parseDeltas(data.buzzer_fever_score_deltas_text)
-            : null,
-        buzzer_ultimate_score_deltas: data.has_ultimate_fever
-            ? parseDeltas(data.buzzer_ultimate_score_deltas_text)
-            : null,
-        score_deltas: parseDeltas(data.buzzer_normal_score_deltas_text),
+        has_fever: data.round_template_id ? null : (!!data.has_fever || !!data.has_ultimate_fever),
+        has_ultimate_fever: data.round_template_id ? null : !!data.has_ultimate_fever,
+        lightning_score_deltas: data.round_template_id ? null : parseDeltas(data.lightning_score_deltas_text),
+        buzzer_normal_score_deltas: data.round_template_id ? null : parseDeltas(data.buzzer_normal_score_deltas_text),
+        buzzer_fever_score_deltas: data.round_template_id
+            ? null
+            : ((data.has_fever || data.has_ultimate_fever)
+                ? parseDeltas(data.buzzer_fever_score_deltas_text)
+                : null),
+        buzzer_ultimate_score_deltas: data.round_template_id
+            ? null
+            : (data.has_ultimate_fever
+                ? parseDeltas(data.buzzer_ultimate_score_deltas_text)
+                : null),
+        score_deltas: data.round_template_id ? null : parseDeltas(data.buzzer_normal_score_deltas_text),
     })).post(route('admin.rounds.store', props.tournament.id), {
         onSuccess: () => roundForm.reset(
             'name',
@@ -532,12 +538,12 @@ const actionLabel = (rule) => rule.action_type === 'eliminate'
                             </option>
                         </select>
                     </label>
-                    <label class="block">
+                    <label v-if="!isUsingRoundTemplate" class="block">
                         <div class="mb-1 text-sm font-medium text-gray-700">Teams Per Round</div>
                         <input v-model="roundForm.teams_per_round" type="number" min="2" max="8" class="w-full rounded border px-2 py-1" />
                         <div class="mt-1 text-xs text-gray-500">Default is 3 participant slots for this round.</div>
                     </label>
-                    <label class="block">
+                    <label v-if="!isUsingRoundTemplate" class="block">
                         <div class="mb-1 text-sm font-medium text-gray-700">Default Score</div>
                         <input v-model="roundForm.default_score" type="number" min="0" class="w-full rounded border px-2 py-1" />
                         <div class="mt-1 text-xs text-gray-500">Defaults to 100 if left empty.</div>
@@ -551,7 +557,10 @@ const actionLabel = (rule) => rule.action_type === 'eliminate'
                         <input v-model="roundForm.sort_order" type="number" class="w-full rounded border px-2 py-1" />
                         <div class="mt-1 text-xs text-gray-500">Default is 0. Smaller numbers appear earlier in round lists.</div>
                     </label>
-                    <label class="block md:col-span-2">
+                    <div v-if="isUsingRoundTemplate" class="rounded border bg-gray-50 px-3 py-2 text-sm text-gray-600 md:col-span-2">
+                        Template-selected mode: teams per round, score deltas, and fever settings come from the chosen template.
+                    </div>
+                    <label v-if="!isUsingRoundTemplate" class="block md:col-span-2">
                         <div class="mb-1 text-sm font-medium text-gray-700">Buzzer Modes</div>
                         <div class="flex flex-wrap gap-4 rounded border px-3 py-2 text-sm">
                             <label class="inline-flex items-center gap-2">
@@ -565,7 +574,7 @@ const actionLabel = (rule) => rule.action_type === 'eliminate'
                         </div>
                         <div class="mt-1 text-xs text-gray-500">Ultimate Fever implies Fever.</div>
                     </label>
-                    <label class="block md:col-span-2">
+                    <label v-if="!isUsingRoundTemplate" class="block md:col-span-2">
                         <div class="mb-1 text-sm font-medium text-gray-700">Lightning Score Deltas</div>
                         <input
                             v-model="roundForm.lightning_score_deltas_text"
@@ -573,7 +582,7 @@ const actionLabel = (rule) => rule.action_type === 'eliminate'
                             placeholder="20,10,-10"
                         />
                     </label>
-                    <label class="block md:col-span-2">
+                    <label v-if="!isUsingRoundTemplate" class="block md:col-span-2">
                         <div class="mb-1 text-sm font-medium text-gray-700">Buzzer (Normal) Score Deltas</div>
                         <input
                             v-model="roundForm.buzzer_normal_score_deltas_text"
@@ -581,7 +590,7 @@ const actionLabel = (rule) => rule.action_type === 'eliminate'
                             placeholder="20,10,-10"
                         />
                     </label>
-                    <label v-if="roundForm.has_fever || roundForm.has_ultimate_fever" class="block md:col-span-2">
+                    <label v-if="!isUsingRoundTemplate && (roundForm.has_fever || roundForm.has_ultimate_fever)" class="block md:col-span-2">
                         <div class="mb-1 text-sm font-medium text-gray-700">Buzzer (Fever) Score Deltas</div>
                         <input
                             v-model="roundForm.buzzer_fever_score_deltas_text"
@@ -589,7 +598,7 @@ const actionLabel = (rule) => rule.action_type === 'eliminate'
                             placeholder="20,10,-10"
                         />
                     </label>
-                    <label v-if="roundForm.has_ultimate_fever" class="block md:col-span-2">
+                    <label v-if="!isUsingRoundTemplate && roundForm.has_ultimate_fever" class="block md:col-span-2">
                         <div class="mb-1 text-sm font-medium text-gray-700">Buzzer (Ultimate Fever) Score Deltas</div>
                         <input
                             v-model="roundForm.buzzer_ultimate_score_deltas_text"
