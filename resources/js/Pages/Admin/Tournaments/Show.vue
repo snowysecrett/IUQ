@@ -917,8 +917,8 @@ const actionLabel = (rule) => rule.action_type === 'eliminate'
                         <option value="completed">completed</option>
                     </select>
                     <select v-model="round.phase" class="rounded border px-2 py-1 text-sm">
-                        <option value="lightning">lightning (必答)</option>
-                        <option value="buzzer_normal">buzzer normal (搶答)</option>
+                        <option value="lightning">lightning</option>
+                        <option value="buzzer_normal">buzzer normal</option>
                         <option value="buzzer_fever">buzzer fever</option>
                         <option value="buzzer_ultimate_fever">buzzer ultimate fever</option>
                     </select>
