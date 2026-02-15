@@ -1,5 +1,6 @@
 <script setup>
 import { Head, router, useForm } from '@inertiajs/vue3';
+import { ref } from 'vue';
 import MainLayout from '@/Layouts/MainLayout.vue';
 
 defineProps({
@@ -18,6 +19,40 @@ const submit = () => {
     form.post(route('admin.teams.store'), {
         forceFormData: true,
         onSuccess: () => form.reset('team_name', 'short_name', 'icon_path', 'icon_file'),
+    });
+};
+
+const editingTeamId = ref(null);
+const editForm = useForm({
+    university_name: '',
+    team_name: '',
+    short_name: '',
+    icon_path: '',
+    icon_file: null,
+});
+
+const startEdit = (team) => {
+    editingTeamId.value = team.id;
+    editForm.reset();
+    editForm.university_name = team.university_name ?? '';
+    editForm.team_name = team.team_name ?? '';
+    editForm.short_name = team.short_name ?? '';
+    editForm.icon_path = team.icon_path ?? '';
+    editForm.icon_file = null;
+};
+
+const cancelEdit = () => {
+    editingTeamId.value = null;
+    editForm.reset();
+};
+
+const submitEdit = (teamId) => {
+    editForm.patch(route('admin.teams.update', teamId), {
+        forceFormData: true,
+        preserveScroll: true,
+        onSuccess: () => {
+            cancelEdit();
+        },
     });
 };
 
@@ -62,18 +97,67 @@ const removeTeam = (team) => {
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="team in teams" :key="team.id">
-                        <td class="border px-2 py-1">{{ team.university_name }}</td>
-                        <td class="border px-2 py-1">{{ team.team_name }}</td>
-                        <td class="border px-2 py-1">{{ team.short_name || '-' }}</td>
-                        <td class="border px-2 py-1">
-                            <img v-if="team.icon_url" :src="team.icon_url" :alt="team.team_name" class="h-10 w-10 rounded object-cover" />
-                            <span v-else>-</span>
-                        </td>
-                        <td class="border px-2 py-1">
-                            <button class="rounded border border-amber-400 px-2 py-1 text-amber-700" @click="removeTeam(team)">Archive</button>
-                        </td>
-                    </tr>
+                    <template v-for="team in teams" :key="team.id">
+                        <tr>
+                            <td class="border px-2 py-1">{{ team.university_name }}</td>
+                            <td class="border px-2 py-1">{{ team.team_name }}</td>
+                            <td class="border px-2 py-1">{{ team.short_name || '-' }}</td>
+                            <td class="border px-2 py-1">
+                                <img v-if="team.icon_url" :src="team.icon_url" :alt="team.team_name" class="h-10 w-10 rounded object-cover" />
+                                <span v-else>-</span>
+                            </td>
+                            <td class="border px-2 py-1">
+                                <div class="flex flex-wrap gap-2">
+                                    <button
+                                        class="rounded border border-blue-400 px-2 py-1 text-blue-700"
+                                        @click="startEdit(team)"
+                                    >
+                                        Edit
+                                    </button>
+                                    <button class="rounded border border-amber-400 px-2 py-1 text-amber-700" @click="removeTeam(team)">
+                                        Archive
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr v-if="editingTeamId === team.id">
+                            <td colspan="5" class="border bg-gray-50 p-3">
+                                <form @submit.prevent="submitEdit(team.id)" class="grid gap-2 md:grid-cols-4">
+                                    <input
+                                        v-model="editForm.university_name"
+                                        placeholder="University"
+                                        class="rounded border px-2 py-1"
+                                        required
+                                    />
+                                    <input
+                                        v-model="editForm.team_name"
+                                        placeholder="Team name"
+                                        class="rounded border px-2 py-1"
+                                        required
+                                    />
+                                    <input v-model="editForm.short_name" placeholder="Short name" class="rounded border px-2 py-1" />
+                                    <input
+                                        v-model="editForm.icon_path"
+                                        placeholder="Icon URL/path (optional)"
+                                        class="rounded border px-2 py-1"
+                                    />
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        class="rounded border px-2 py-1 md:col-span-2"
+                                        @input="editForm.icon_file = $event.target.files[0]"
+                                    />
+                                    <div class="text-xs text-gray-500 md:col-span-4">
+                                        Upload file will override URL/path if both are provided.
+                                    </div>
+                                    <div class="flex gap-2 md:col-span-4">
+                                        <button class="rounded border bg-gray-900 px-3 py-1 text-white">Save Team</button>
+                                        <button type="button" class="rounded border px-3 py-1" @click="cancelEdit">Cancel</button>
+                                    </div>
+                                </form>
+                            </td>
+                        </tr>
+                    </template>
                 </tbody>
             </table>
         </div>
