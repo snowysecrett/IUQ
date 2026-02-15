@@ -52,8 +52,10 @@ class RoundUpdated implements ShouldBroadcastNow
             ],
             'participants' => $round->participants->map(fn ($participant) => [
                 'slot' => $participant->slot,
-                'name' => $participant->display_name_snapshot ?? ("Team {$participant->slot}"),
-                'icon_url' => MediaPath::toUrl($participant->icon_snapshot_path ?: $participant->team?->icon_path),
+                'name' => $participant->team?->team_name
+                    ?: $participant->display_name_snapshot
+                    ?: ("Team {$participant->slot}"),
+                'icon_url' => MediaPath::toUrl($participant->team?->icon_path ?: $participant->icon_snapshot_path),
             ])->values(),
             'scores' => $scoreRows,
         ];

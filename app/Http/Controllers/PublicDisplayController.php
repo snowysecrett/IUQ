@@ -41,7 +41,11 @@ class PublicDisplayController extends Controller
 
             if ($selectedRound) {
                 $selectedRound->setRelation('participants', $selectedRound->participants->map(function ($participant) {
-                    $iconPath = $participant->icon_snapshot_path ?: $participant->team?->icon_path;
+                    $resolvedName = $participant->team?->team_name
+                        ?: $participant->display_name_snapshot
+                        ?: "Team {$participant->slot}";
+                    $iconPath = $participant->team?->icon_path ?: $participant->icon_snapshot_path;
+                    $participant->setAttribute('display_name_snapshot', $resolvedName);
                     $participant->setAttribute('icon_url', MediaPath::toUrl($iconPath));
 
                     return $participant;
@@ -81,8 +85,10 @@ class PublicDisplayController extends Controller
             ],
             'participants' => $round->participants->map(fn ($participant) => [
                 'slot' => $participant->slot,
-                'name' => $participant->display_name_snapshot ?? ("Team {$participant->slot}"),
-                'icon_url' => MediaPath::toUrl($participant->icon_snapshot_path ?: $participant->team?->icon_path),
+                'name' => $participant->team?->team_name
+                    ?: $participant->display_name_snapshot
+                    ?: ("Team {$participant->slot}"),
+                'icon_url' => MediaPath::toUrl($participant->team?->icon_path ?: $participant->icon_snapshot_path),
             ])->values(),
             'scores' => $scoreRows,
         ]);

@@ -2,10 +2,14 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Events\RoundUpdated;
 use App\Http\Controllers\Controller;
+use App\Models\Round;
 use App\Models\Team;
+use Illuminate\Broadcasting\BroadcastException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -58,6 +62,19 @@ class TeamController extends Controller
 
         unset($data['icon_file']);
         $team->update($data);
+
+        try {
+            Round::query()
+                ->whereHas('participants', fn ($query) => $query->where('team_id', $team->id))
+                ->with(['participants.team', 'scores', 'result.entries', 'tournament'])
+                ->get()
+                ->each(fn (Round $round) => broadcast(new RoundUpdated($round)));
+        } catch (BroadcastException $exception) {
+            Log::warning('Team updated but realtime round refresh broadcast failed.', [
+                'team_id' => $team->id,
+                'error' => $exception->getMessage(),
+            ]);
+        }
 
         return back()->with('success', 'Team updated.');
     }
