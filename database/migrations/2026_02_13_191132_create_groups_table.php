@@ -11,16 +11,18 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('groups', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('tournament_id')->constrained()->cascadeOnDelete();
-            $table->string('name');
-            $table->string('code')->nullable();
-            $table->unsignedInteger('sort_order')->default(0);
-            $table->timestamps();
+        if (!Schema::hasTable('groups')) {
+            Schema::create('groups', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('tournament_id')->constrained()->cascadeOnDelete();
+                $table->string('name');
+                $table->string('code')->nullable();
+                $table->unsignedInteger('sort_order')->default(0);
+                $table->timestamps();
 
-            $table->unique(['tournament_id', 'name']);
-        });
+                $table->unique(['tournament_id', 'name']);
+            });
+        }
     }
 
     /**
