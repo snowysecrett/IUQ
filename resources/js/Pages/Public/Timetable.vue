@@ -1,0 +1,93 @@
+<script setup>
+import { Head, router } from '@inertiajs/vue3';
+import MainLayout from '@/Layouts/MainLayout.vue';
+import { statusBadgeClass } from '@/composables/useStatusBadge';
+
+const props = defineProps({
+    years: Array,
+    tournaments: Array,
+    selectedTournament: Object,
+});
+
+const filterYear = (event) => {
+    const value = event.target.value;
+    router.get(route('timetable.index'), value ? { year: value } : {}, { preserveState: true });
+};
+
+const selectTournament = (event) => {
+    router.get(route('timetable.index'), {
+        tournament_id: event.target.value,
+    }, { preserveState: true });
+};
+
+const formatScheduledAt = (value) => {
+    if (!value) {
+        return 'TBD';
+    }
+
+    const normalized = String(value).replace('T', ' ').replace('Z', '');
+    return normalized.includes('.') ? normalized.split('.')[0] : normalized;
+};
+
+const scoreFor = (round, slot) => {
+    const resultScore = round.result?.entries?.find((item) => item.slot === slot)?.score;
+    if (resultScore !== undefined && resultScore !== null) {
+        return resultScore;
+    }
+
+    return round.scores.find((item) => item.slot === slot)?.score ?? 0;
+};
+</script>
+
+<template>
+    <Head title="Timetable" />
+    <MainLayout title="Timetable Page">
+        <div class="mb-4 grid gap-2 rounded border bg-white p-4 md:grid-cols-2">
+            <select class="rounded border px-2 py-1" @change="filterYear">
+                <option value="">All years</option>
+                <option v-for="year in years" :key="year" :value="year">{{ year }}</option>
+            </select>
+            <select class="rounded border px-2 py-1" :value="selectedTournament?.id" @change="selectTournament">
+                <option v-for="tournament in tournaments" :key="tournament.id" :value="tournament.id">
+                    {{ tournament.name }} ({{ tournament.year }})
+                </option>
+            </select>
+        </div>
+
+        <div v-if="selectedTournament" class="space-y-3">
+            <div v-for="round in selectedTournament.rounds" :key="round.id" class="overflow-auto rounded border bg-white">
+                <div class="border-b bg-gray-50 px-3 py-2 text-lg font-semibold">{{ round.name }}</div>
+                <table class="min-w-full text-sm">
+                    <thead>
+                        <tr>
+                            <th class="border px-2 py-1 text-left">Status</th>
+                            <th class="border px-2 py-1 text-left">Scheduled</th>
+                            <th class="border px-2 py-1 text-left">Teams</th>
+                            <th class="border px-2 py-1 text-left">Scores</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="border px-2 py-1">
+                                <span class="rounded border px-2 py-0.5" :class="statusBadgeClass(round.status)">
+                                    {{ round.status }}
+                                </span>
+                            </td>
+                            <td class="border px-2 py-1">{{ formatScheduledAt(round.scheduled_start_at) }}</td>
+                            <td class="border px-2 py-1">
+                                <span v-for="participant in round.participants" :key="participant.id" class="mr-2 inline-block rounded bg-gray-100 px-2 py-0.5">
+                                    {{ participant.display_name_snapshot || `Team ${participant.slot}` }}
+                                </span>
+                            </td>
+                            <td class="border px-2 py-1">
+                                <span v-for="participant in round.participants" :key="`${participant.id}-score`" class="mr-2 inline-block rounded bg-gray-100 px-2 py-0.5">
+                                    {{ participant.display_name_snapshot || `Team ${participant.slot}` }}: {{ scoreFor(round, participant.slot) }}
+                                </span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </MainLayout>
+</template>
