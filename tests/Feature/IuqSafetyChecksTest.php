@@ -142,6 +142,12 @@ class IuqSafetyChecksTest extends TestCase
             'teams_per_round' => 3,
             'default_score' => 120,
             'default_score_deltas' => [20, 10, -10],
+            'has_fever' => true,
+            'has_ultimate_fever' => true,
+            'default_lightning_score_deltas' => [15, 5, -5],
+            'default_buzzer_normal_score_deltas' => [20, 10, -10],
+            'default_buzzer_fever_score_deltas' => [30, 10, -10],
+            'default_buzzer_ultimate_score_deltas' => [40, 20, -20],
             'sort_order' => 1,
         ]);
 
@@ -171,8 +177,14 @@ class IuqSafetyChecksTest extends TestCase
             'teams_per_round' => 3,
             'default_score' => 120,
             'status' => 'completed',
-            'phase' => 'buzzer',
+            'phase' => 'buzzer_fever',
             'score_deltas' => [20, 10, -10],
+            'has_fever' => true,
+            'has_ultimate_fever' => true,
+            'lightning_score_deltas' => [15, 5, -5],
+            'buzzer_normal_score_deltas' => [20, 10, -10],
+            'buzzer_fever_score_deltas' => [30, 10, -10],
+            'buzzer_ultimate_score_deltas' => [40, 20, -20],
             'sort_order' => 10,
             'scheduled_start_at' => now(),
         ]);
@@ -251,11 +263,25 @@ class IuqSafetyChecksTest extends TestCase
         $this->assertSame(1, $clone->groups()->count());
         $this->assertSame(1, $clone->rounds()->count());
 
+        $clonedTemplate = $clone->roundTemplates()->firstOrFail();
+        $this->assertTrue((bool) $clonedTemplate->has_fever);
+        $this->assertTrue((bool) $clonedTemplate->has_ultimate_fever);
+        $this->assertSame([15, 5, -5], $clonedTemplate->default_lightning_score_deltas);
+        $this->assertSame([20, 10, -10], $clonedTemplate->default_buzzer_normal_score_deltas);
+        $this->assertSame([30, 10, -10], $clonedTemplate->default_buzzer_fever_score_deltas);
+        $this->assertSame([40, 20, -20], $clonedTemplate->default_buzzer_ultimate_score_deltas);
+
         $clonedRound = $clone->rounds()->firstOrFail();
         $this->assertSame('draft', $clonedRound->status);
         $this->assertSame('lightning', $clonedRound->phase);
         $this->assertNull($clonedRound->scheduled_start_at);
         $this->assertSame(120, $clonedRound->default_score);
+        $this->assertTrue((bool) $clonedRound->has_fever);
+        $this->assertTrue((bool) $clonedRound->has_ultimate_fever);
+        $this->assertSame([15, 5, -5], $clonedRound->lightning_score_deltas);
+        $this->assertSame([20, 10, -10], $clonedRound->buzzer_normal_score_deltas);
+        $this->assertSame([30, 10, -10], $clonedRound->buzzer_fever_score_deltas);
+        $this->assertSame([40, 20, -20], $clonedRound->buzzer_ultimate_score_deltas);
 
         $this->assertCount(3, $clonedRound->participants);
         $this->assertTrue($clonedRound->participants->every(fn ($p) => $p->team_id === null));
