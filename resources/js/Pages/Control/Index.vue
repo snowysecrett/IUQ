@@ -26,9 +26,59 @@ const scoreMap = computed(() => {
     return map;
 });
 
-const deltas = computed(() => props.selectedRound?.score_deltas || [20, 10, -10]);
+const normalizeDeltas = (values) => (Array.isArray(values) && values.length > 0 ? values : [20, 10, -10]);
+
+const currentDeltas = computed(() => {
+    if (!props.selectedRound) {
+        return [20, 10, -10];
+    }
+
+    const phase = props.selectedRound.phase;
+    if (phase === 'lightning') {
+        return normalizeDeltas(props.selectedRound.lightning_score_deltas || props.selectedRound.score_deltas);
+    }
+    if (phase === 'buzzer_fever') {
+        return normalizeDeltas(props.selectedRound.buzzer_fever_score_deltas || props.selectedRound.buzzer_normal_score_deltas || props.selectedRound.score_deltas);
+    }
+    if (phase === 'buzzer_ultimate_fever') {
+        return normalizeDeltas(props.selectedRound.buzzer_ultimate_score_deltas || props.selectedRound.buzzer_normal_score_deltas || props.selectedRound.score_deltas);
+    }
+
+    return normalizeDeltas(props.selectedRound.buzzer_normal_score_deltas || props.selectedRound.score_deltas);
+});
 const isLiveRound = computed(() => props.selectedRound?.status === 'live');
-const canGoToBuzzer = computed(() => isLiveRound.value && props.selectedRound?.phase !== 'buzzer');
+const phase = computed(() => props.selectedRound?.phase || 'lightning');
+const isLightningPhase = computed(() => phase.value === 'lightning');
+const isBuzzerNormalPhase = computed(() => phase.value === 'buzzer_normal' || phase.value === 'buzzer');
+const isBuzzerFeverPhase = computed(() => phase.value === 'buzzer_fever');
+const isBuzzerUltimatePhase = computed(() => phase.value === 'buzzer_ultimate_fever');
+const canGoToBuzzer = computed(() => isLiveRound.value && isLightningPhase.value);
+const hasFever = computed(() => !!props.selectedRound?.has_fever);
+const hasUltimateFever = computed(() => !!props.selectedRound?.has_ultimate_fever);
+const showNextBuzzerButton = computed(() => !isLightningPhase.value && !isBuzzerUltimatePhase.value);
+const canAdvanceBuzzerPhase = computed(() => {
+    if (!isLiveRound.value) {
+        return false;
+    }
+    if (isBuzzerNormalPhase.value) {
+        return hasFever.value;
+    }
+    if (isBuzzerFeverPhase.value) {
+        return hasUltimateFever.value;
+    }
+
+    return false;
+});
+const nextBuzzerButtonLabel = computed(() => {
+    if (isBuzzerNormalPhase.value) {
+        return t('toFeverRound');
+    }
+    if (isBuzzerFeverPhase.value) {
+        return t('toUltimateFeverRound');
+    }
+
+    return '';
+});
 const canClearRound = computed(() => ['live', 'completed'].includes(props.selectedRound?.status));
 const canToggleCompetition = computed(() => ['draft', 'live'].includes(props.selectedRound?.status));
 const isEndModalOpen = ref(false);
@@ -51,6 +101,19 @@ const runAction = (payload) => {
         preserveScroll: true,
         preserveState: false,
     });
+};
+
+const confirmToBuzzerRound = () => {
+    if (!canGoToBuzzer.value) return;
+    if (!confirm(t('confirmToBuzzerRound'))) return;
+    runAction({ action: 'to_buzzer' });
+};
+
+const confirmNextBuzzerPhase = () => {
+    if (!canAdvanceBuzzerPhase.value) return;
+    if (isBuzzerNormalPhase.value && !confirm(t('confirmToFeverRound'))) return;
+    if (isBuzzerFeverPhase.value && !confirm(t('confirmToUltimateFeverRound'))) return;
+    runAction({ action: 'to_next_buzzer_phase' });
 };
 
 const startOrEndCompetition = () => {
@@ -112,6 +175,15 @@ const confirmEndCompetition = () => {
     isEndModalOpen.value = false;
     runAction(payload);
 };
+
+const phaseLabel = computed(() => {
+    if (isLightningPhase.value) return t('lightningRound');
+    if (isBuzzerNormalPhase.value) return t('buzzerNormalRound');
+    if (isBuzzerFeverPhase.value) return t('buzzerFeverRound');
+    if (isBuzzerUltimatePhase.value) return t('buzzerUltimateRound');
+
+    return props.selectedRound?.phase;
+});
 </script>
 
 <template>
@@ -139,7 +211,7 @@ const confirmEndCompetition = () => {
                     </div>
                     <div>
                         <span class="font-semibold">{{ t('roundPhase') }}:</span>
-                        <span class="ml-1 rounded bg-gray-100 px-2 py-0.5">{{ selectedRound.phase }}</span>
+                        <span class="ml-1 rounded bg-gray-100 px-2 py-0.5">{{ phaseLabel }}</span>
                     </div>
                 </div>
             </div>
@@ -155,9 +227,17 @@ const confirmEndCompetition = () => {
                 <button
                     class="rounded border px-3 py-1 disabled:cursor-not-allowed disabled:opacity-50"
                     :disabled="!canGoToBuzzer"
-                    @click="runAction({ action: 'to_buzzer' })"
+                    @click="confirmToBuzzerRound"
                 >
                     {{ t('toBuzzerRound') }}
+                </button>
+                <button
+                    v-if="showNextBuzzerButton"
+                    class="rounded border px-3 py-1 disabled:cursor-not-allowed disabled:opacity-50"
+                    :disabled="!canAdvanceBuzzerPhase"
+                    @click="confirmNextBuzzerPhase"
+                >
+                    {{ nextBuzzerButtonLabel }}
                 </button>
                 <button
                     class="rounded border px-3 py-1 disabled:cursor-not-allowed disabled:opacity-50"
@@ -193,7 +273,7 @@ const confirmEndCompetition = () => {
                             <td class="border px-2 py-1">
                                 <div class="flex flex-wrap gap-2">
                                     <button
-                                        v-for="delta in deltas"
+                                        v-for="delta in currentDeltas"
                                         :key="`${participant.slot}-${delta}`"
                                         class="rounded border px-2 py-1 disabled:cursor-not-allowed disabled:opacity-50"
                                         :disabled="!isLiveRound"

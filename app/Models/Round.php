@@ -19,8 +19,14 @@ class Round extends Model
         'default_score',
         'status',
         'phase',
+        'has_fever',
+        'has_ultimate_fever',
         'scheduled_start_at',
         'score_deltas',
+        'lightning_score_deltas',
+        'buzzer_normal_score_deltas',
+        'buzzer_fever_score_deltas',
+        'buzzer_ultimate_score_deltas',
         'sort_order',
     ];
 
@@ -29,7 +35,13 @@ class Round extends Model
         return [
             'scheduled_start_at' => 'datetime',
             'score_deltas' => 'array',
+            'lightning_score_deltas' => 'array',
+            'buzzer_normal_score_deltas' => 'array',
+            'buzzer_fever_score_deltas' => 'array',
+            'buzzer_ultimate_score_deltas' => 'array',
             'default_score' => 'integer',
+            'has_fever' => 'boolean',
+            'has_ultimate_fever' => 'boolean',
         ];
     }
 

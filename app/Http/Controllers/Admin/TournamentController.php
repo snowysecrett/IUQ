@@ -199,6 +199,12 @@ class TournamentController extends Controller
                     'teams_per_round' => $template->teams_per_round,
                     'default_score' => $template->default_score ?? 100,
                     'default_score_deltas' => $template->default_score_deltas,
+                    'has_fever' => $template->has_fever ?? false,
+                    'has_ultimate_fever' => $template->has_ultimate_fever ?? false,
+                    'default_lightning_score_deltas' => $template->default_lightning_score_deltas,
+                    'default_buzzer_normal_score_deltas' => $template->default_buzzer_normal_score_deltas,
+                    'default_buzzer_fever_score_deltas' => $template->default_buzzer_fever_score_deltas,
+                    'default_buzzer_ultimate_score_deltas' => $template->default_buzzer_ultimate_score_deltas,
                     'sort_order' => $template->sort_order,
                 ]);
                 $templateMap[$template->id] = $newTemplate->id;
@@ -227,6 +233,12 @@ class TournamentController extends Controller
                     'phase' => 'lightning',
                     'scheduled_start_at' => null,
                     'score_deltas' => $round->score_deltas,
+                    'has_fever' => $round->has_fever ?? false,
+                    'has_ultimate_fever' => $round->has_ultimate_fever ?? false,
+                    'lightning_score_deltas' => $round->lightning_score_deltas,
+                    'buzzer_normal_score_deltas' => $round->buzzer_normal_score_deltas,
+                    'buzzer_fever_score_deltas' => $round->buzzer_fever_score_deltas,
+                    'buzzer_ultimate_score_deltas' => $round->buzzer_ultimate_score_deltas,
                     'sort_order' => $round->sort_order,
                 ]);
                 $roundMap[$round->id] = $newRound->id;

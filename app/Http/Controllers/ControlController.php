@@ -57,7 +57,7 @@ class ControlController extends Controller
     public function action(Request $request, Round $round): RedirectResponse
     {
         $data = $request->validate([
-            'action' => ['required', Rule::in(['start_competition', 'end_competition', 'to_buzzer', 'add_score', 'undo', 'clear'])],
+            'action' => ['required', Rule::in(['start_competition', 'end_competition', 'to_buzzer', 'to_next_buzzer_phase', 'add_score', 'undo', 'clear'])],
             'slot' => ['nullable', 'integer', 'min:1'],
             'delta' => ['nullable', 'integer'],
             'results' => ['nullable', 'array'],
@@ -73,7 +73,7 @@ class ControlController extends Controller
                     ->lockForUpdate()
                     ->firstOrFail();
 
-            $requiresLive = in_array($data['action'], ['to_buzzer', 'add_score', 'undo'], true);
+            $requiresLive = in_array($data['action'], ['to_buzzer', 'to_next_buzzer_phase', 'add_score', 'undo'], true);
             if ($requiresLive && $lockedRound->status !== 'live') {
                 throw new \RuntimeException('This action is only available when the round is live.');
             }
@@ -90,8 +90,26 @@ class ControlController extends Controller
                 throw new \RuntimeException('Only live rounds can be ended.');
             }
 
-            if ($data['action'] === 'to_buzzer' && $lockedRound->phase === 'buzzer') {
-                throw new \RuntimeException('Round is already in buzzer phase.');
+            if ($data['action'] === 'to_buzzer' && $lockedRound->phase !== 'lightning') {
+                throw new \RuntimeException('Round is not in lightning phase.');
+            }
+
+            if ($data['action'] === 'to_next_buzzer_phase') {
+                if ($lockedRound->phase === 'lightning') {
+                    throw new \RuntimeException('Cannot enter fever before buzzer starts.');
+                }
+
+                if (in_array($lockedRound->phase, ['buzzer', 'buzzer_normal'], true) && !$lockedRound->has_fever) {
+                    throw new \RuntimeException('Fever is not enabled for this round.');
+                }
+
+                if ($lockedRound->phase === 'buzzer_fever' && !$lockedRound->has_ultimate_fever) {
+                    throw new \RuntimeException('Ultimate fever is not enabled for this round.');
+                }
+
+                if ($lockedRound->phase === 'buzzer_ultimate_fever') {
+                    throw new \RuntimeException('Round is already in ultimate fever.');
+                }
             }
 
             switch ($data['action']) {
@@ -126,9 +144,24 @@ class ControlController extends Controller
                     );
 
                 case 'to_buzzer':
-                    $lockedRound->update(['phase' => 'buzzer']);
+                    $lockedRound->update(['phase' => 'buzzer_normal']);
                     $this->logAction($request, $lockedRound, 'to_buzzer', []);
                     return 'Round updated.';
+
+                case 'to_next_buzzer_phase':
+                    if (in_array($lockedRound->phase, ['buzzer', 'buzzer_normal'], true)) {
+                        $lockedRound->update(['phase' => 'buzzer_fever']);
+                        $this->logAction($request, $lockedRound, 'to_fever', []);
+                        return 'Round updated.';
+                    }
+
+                    if ($lockedRound->phase === 'buzzer_fever') {
+                        $lockedRound->update(['phase' => 'buzzer_ultimate_fever']);
+                        $this->logAction($request, $lockedRound, 'to_ultimate_fever', []);
+                        return 'Round updated.';
+                    }
+
+                    throw new \RuntimeException('No next buzzer phase available.');
 
                 case 'add_score':
                     $slot = (int) $data['slot'];

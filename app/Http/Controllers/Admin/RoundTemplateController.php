@@ -11,6 +11,8 @@ use Illuminate\Http\Request;
 
 class RoundTemplateController extends Controller
 {
+    private const DEFAULT_DELTAS = [20, 10, -10];
+
     public function store(Request $request, Tournament $tournament): RedirectResponse
     {
         abort_unless($request->user()?->role === User::ROLE_SUPER_ADMIN, 403);
@@ -23,13 +25,31 @@ class RoundTemplateController extends Controller
             'sort_order' => ['nullable', 'integer', 'min:0'],
             'default_score_deltas' => ['nullable', 'array'],
             'default_score_deltas.*' => ['integer'],
+            'has_fever' => ['nullable', 'boolean'],
+            'has_ultimate_fever' => ['nullable', 'boolean'],
+            'default_lightning_score_deltas' => ['nullable', 'array'],
+            'default_lightning_score_deltas.*' => ['integer'],
+            'default_buzzer_normal_score_deltas' => ['nullable', 'array'],
+            'default_buzzer_normal_score_deltas.*' => ['integer'],
+            'default_buzzer_fever_score_deltas' => ['nullable', 'array'],
+            'default_buzzer_fever_score_deltas.*' => ['integer'],
+            'default_buzzer_ultimate_score_deltas' => ['nullable', 'array'],
+            'default_buzzer_ultimate_score_deltas.*' => ['integer'],
         ]);
+
+        $config = $this->resolvePhaseConfig($data, null);
 
         $tournament->roundTemplates()->create([
             ...$data,
             'default_score' => $data['default_score'] ?? 100,
             'sort_order' => $data['sort_order'] ?? 0,
-            'default_score_deltas' => $data['default_score_deltas'] ?? [20, 10, -10],
+            'default_score_deltas' => $config['buzzer_normal_score_deltas'],
+            'has_fever' => $config['has_fever'],
+            'has_ultimate_fever' => $config['has_ultimate_fever'],
+            'default_lightning_score_deltas' => $config['lightning_score_deltas'],
+            'default_buzzer_normal_score_deltas' => $config['buzzer_normal_score_deltas'],
+            'default_buzzer_fever_score_deltas' => $config['buzzer_fever_score_deltas'],
+            'default_buzzer_ultimate_score_deltas' => $config['buzzer_ultimate_score_deltas'],
         ]);
 
         return back()->with('success', 'Round template created.');
@@ -47,13 +67,31 @@ class RoundTemplateController extends Controller
             'sort_order' => ['nullable', 'integer', 'min:0'],
             'default_score_deltas' => ['nullable', 'array'],
             'default_score_deltas.*' => ['integer'],
+            'has_fever' => ['nullable', 'boolean'],
+            'has_ultimate_fever' => ['nullable', 'boolean'],
+            'default_lightning_score_deltas' => ['nullable', 'array'],
+            'default_lightning_score_deltas.*' => ['integer'],
+            'default_buzzer_normal_score_deltas' => ['nullable', 'array'],
+            'default_buzzer_normal_score_deltas.*' => ['integer'],
+            'default_buzzer_fever_score_deltas' => ['nullable', 'array'],
+            'default_buzzer_fever_score_deltas.*' => ['integer'],
+            'default_buzzer_ultimate_score_deltas' => ['nullable', 'array'],
+            'default_buzzer_ultimate_score_deltas.*' => ['integer'],
         ]);
+
+        $config = $this->resolvePhaseConfig($data, $roundTemplate);
 
         $roundTemplate->update([
             ...$data,
             'default_score' => $data['default_score'] ?? 100,
             'sort_order' => $data['sort_order'] ?? 0,
-            'default_score_deltas' => $data['default_score_deltas'] ?? [20, 10, -10],
+            'default_score_deltas' => $config['buzzer_normal_score_deltas'],
+            'has_fever' => $config['has_fever'],
+            'has_ultimate_fever' => $config['has_ultimate_fever'],
+            'default_lightning_score_deltas' => $config['lightning_score_deltas'],
+            'default_buzzer_normal_score_deltas' => $config['buzzer_normal_score_deltas'],
+            'default_buzzer_fever_score_deltas' => $config['buzzer_fever_score_deltas'],
+            'default_buzzer_ultimate_score_deltas' => $config['buzzer_ultimate_score_deltas'],
         ]);
 
         return back()->with('success', 'Round template updated.');
@@ -66,5 +104,64 @@ class RoundTemplateController extends Controller
         $roundTemplate->delete();
 
         return back()->with('success', 'Round template deleted.');
+    }
+
+    private function resolvePhaseConfig(array $data, ?RoundTemplate $current): array
+    {
+        $legacy = $data['default_score_deltas']
+            ?? $current?->default_score_deltas
+            ?? self::DEFAULT_DELTAS;
+        $base = $this->normalizeDeltas($legacy);
+
+        $hasFever = filter_var($data['has_fever'] ?? $current?->has_fever ?? false, FILTER_VALIDATE_BOOLEAN);
+        $hasUltimate = filter_var($data['has_ultimate_fever'] ?? $current?->has_ultimate_fever ?? false, FILTER_VALIDATE_BOOLEAN);
+        if ($hasUltimate) {
+            $hasFever = true;
+        }
+
+        $lightning = $this->normalizeDeltas(
+            $data['default_lightning_score_deltas']
+                ?? $current?->default_lightning_score_deltas
+                ?? $base
+        );
+        $normal = $this->normalizeDeltas(
+            $data['default_buzzer_normal_score_deltas']
+                ?? $current?->default_buzzer_normal_score_deltas
+                ?? $base
+        );
+        $fever = $hasFever
+            ? $this->normalizeDeltas(
+                $data['default_buzzer_fever_score_deltas']
+                    ?? $current?->default_buzzer_fever_score_deltas
+                    ?? $base
+            )
+            : null;
+        $ultimate = $hasUltimate
+            ? $this->normalizeDeltas(
+                $data['default_buzzer_ultimate_score_deltas']
+                    ?? $current?->default_buzzer_ultimate_score_deltas
+                    ?? $base
+            )
+            : null;
+
+        return [
+            'has_fever' => $hasFever,
+            'has_ultimate_fever' => $hasUltimate,
+            'lightning_score_deltas' => $lightning,
+            'buzzer_normal_score_deltas' => $normal,
+            'buzzer_fever_score_deltas' => $fever,
+            'buzzer_ultimate_score_deltas' => $ultimate,
+        ];
+    }
+
+    private function normalizeDeltas(?array $values): array
+    {
+        $clean = collect($values ?? [])
+            ->map(fn ($value) => is_numeric($value) ? (int) $value : null)
+            ->filter(fn ($value) => $value !== null)
+            ->values()
+            ->all();
+
+        return count($clean) > 0 ? $clean : self::DEFAULT_DELTAS;
     }
 }

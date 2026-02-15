@@ -15,6 +15,12 @@ class RoundTemplate extends Model
         'teams_per_round',
         'default_score',
         'default_score_deltas',
+        'has_fever',
+        'has_ultimate_fever',
+        'default_lightning_score_deltas',
+        'default_buzzer_normal_score_deltas',
+        'default_buzzer_fever_score_deltas',
+        'default_buzzer_ultimate_score_deltas',
         'sort_order',
     ];
 
@@ -23,6 +29,12 @@ class RoundTemplate extends Model
         return [
             'default_score' => 'integer',
             'default_score_deltas' => 'array',
+            'default_lightning_score_deltas' => 'array',
+            'default_buzzer_normal_score_deltas' => 'array',
+            'default_buzzer_fever_score_deltas' => 'array',
+            'default_buzzer_ultimate_score_deltas' => 'array',
+            'has_fever' => 'boolean',
+            'has_ultimate_fever' => 'boolean',
         ];
     }
 

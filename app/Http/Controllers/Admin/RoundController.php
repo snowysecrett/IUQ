@@ -18,6 +18,8 @@ use Illuminate\Support\Facades\DB;
 
 class RoundController extends Controller
 {
+    private const DEFAULT_DELTAS = [20, 10, -10];
+
     public function store(Request $request, Tournament $tournament): RedirectResponse
     {
         abort_unless($request->user()?->role === User::ROLE_SUPER_ADMIN, 403);
@@ -31,6 +33,16 @@ class RoundController extends Controller
             'default_score' => ['nullable', 'integer', 'min:0'],
             'scheduled_start_at' => ['nullable', 'date'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
+            'has_fever' => ['nullable', 'boolean'],
+            'has_ultimate_fever' => ['nullable', 'boolean'],
+            'lightning_score_deltas' => ['nullable', 'array'],
+            'lightning_score_deltas.*' => ['integer'],
+            'buzzer_normal_score_deltas' => ['nullable', 'array'],
+            'buzzer_normal_score_deltas.*' => ['integer'],
+            'buzzer_fever_score_deltas' => ['nullable', 'array'],
+            'buzzer_fever_score_deltas.*' => ['integer'],
+            'buzzer_ultimate_score_deltas' => ['nullable', 'array'],
+            'buzzer_ultimate_score_deltas.*' => ['integer'],
             'score_deltas' => ['nullable', 'array'],
             'score_deltas.*' => ['integer'],
         ]);
@@ -46,6 +58,7 @@ class RoundController extends Controller
         $defaultScore = array_key_exists('default_score', $data) && $data['default_score'] !== null
             ? (int) $data['default_score']
             : (int) ($template?->default_score ?? 100);
+        $phaseConfig = $this->resolvePhaseConfig($data, $template, null);
 
         $round = $tournament->rounds()->create([
             ...$data,
@@ -53,7 +66,13 @@ class RoundController extends Controller
             'status' => 'draft',
             'phase' => 'lightning',
             'sort_order' => $data['sort_order'] ?? 0,
-            'score_deltas' => $data['score_deltas'] ?? [20, 10, -10],
+            'score_deltas' => $phaseConfig['buzzer_normal_score_deltas'],
+            'has_fever' => $phaseConfig['has_fever'],
+            'has_ultimate_fever' => $phaseConfig['has_ultimate_fever'],
+            'lightning_score_deltas' => $phaseConfig['lightning_score_deltas'],
+            'buzzer_normal_score_deltas' => $phaseConfig['buzzer_normal_score_deltas'],
+            'buzzer_fever_score_deltas' => $phaseConfig['buzzer_fever_score_deltas'],
+            'buzzer_ultimate_score_deltas' => $phaseConfig['buzzer_ultimate_score_deltas'],
         ]);
 
         for ($slot = 1; $slot <= (int) $data['teams_per_round']; $slot++) {
@@ -73,14 +92,36 @@ class RoundController extends Controller
             'code' => ['nullable', 'string', 'max:64'],
             'group_id' => ['nullable', Rule::exists('groups', 'id')->where('tournament_id', $round->tournament_id)],
             'status' => ['required', Rule::in(['draft', 'live', 'completed'])],
-            'phase' => ['required', Rule::in(['lightning', 'buzzer'])],
+            'phase' => ['required', Rule::in(['lightning', 'buzzer', 'buzzer_normal', 'buzzer_fever', 'buzzer_ultimate_fever'])],
             'teams_per_round' => ['required', 'integer', 'min:2', 'max:8'],
             'default_score' => ['nullable', 'integer', 'min:0'],
             'scheduled_start_at' => ['nullable', 'date'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
+            'has_fever' => ['nullable', 'boolean'],
+            'has_ultimate_fever' => ['nullable', 'boolean'],
+            'lightning_score_deltas' => ['nullable', 'array'],
+            'lightning_score_deltas.*' => ['integer'],
+            'buzzer_normal_score_deltas' => ['nullable', 'array'],
+            'buzzer_normal_score_deltas.*' => ['integer'],
+            'buzzer_fever_score_deltas' => ['nullable', 'array'],
+            'buzzer_fever_score_deltas.*' => ['integer'],
+            'buzzer_ultimate_score_deltas' => ['nullable', 'array'],
+            'buzzer_ultimate_score_deltas.*' => ['integer'],
             'score_deltas' => ['nullable', 'array'],
             'score_deltas.*' => ['integer'],
         ]);
+
+        if ($data['phase'] === 'buzzer') {
+            $data['phase'] = 'buzzer_normal';
+        }
+
+        $phaseConfig = $this->resolvePhaseConfig($data, $round->template, $round);
+        if ($data['phase'] === 'buzzer_fever' && !$phaseConfig['has_fever']) {
+            $data['phase'] = 'buzzer_normal';
+        }
+        if ($data['phase'] === 'buzzer_ultimate_fever' && !$phaseConfig['has_ultimate_fever']) {
+            $data['phase'] = $phaseConfig['has_fever'] ? 'buzzer_fever' : 'buzzer_normal';
+        }
 
         $newDefaultScore = $data['default_score'] ?? $round->default_score;
         $defaultScoreChanged = (int) $newDefaultScore !== (int) $round->default_score;
@@ -97,7 +138,13 @@ class RoundController extends Controller
             ...$data,
             'default_score' => $newDefaultScore,
             'sort_order' => $data['sort_order'] ?? $round->sort_order,
-            'score_deltas' => $data['score_deltas'] ?? $round->score_deltas,
+            'score_deltas' => $phaseConfig['buzzer_normal_score_deltas'],
+            'has_fever' => $phaseConfig['has_fever'],
+            'has_ultimate_fever' => $phaseConfig['has_ultimate_fever'],
+            'lightning_score_deltas' => $phaseConfig['lightning_score_deltas'],
+            'buzzer_normal_score_deltas' => $phaseConfig['buzzer_normal_score_deltas'],
+            'buzzer_fever_score_deltas' => $phaseConfig['buzzer_fever_score_deltas'],
+            'buzzer_ultimate_score_deltas' => $phaseConfig['buzzer_ultimate_score_deltas'],
         ]);
 
         $maxSlot = (int) $round->participants()->max('slot');
@@ -284,5 +331,72 @@ class RoundController extends Controller
             $advancementSummary['eliminated'],
             $advancementSummary['stale_marked'],
         ));
+    }
+
+    private function resolvePhaseConfig(array $data, ?RoundTemplate $template, ?Round $current): array
+    {
+        $legacy = $data['score_deltas']
+            ?? $current?->score_deltas
+            ?? $template?->default_score_deltas
+            ?? self::DEFAULT_DELTAS;
+        $base = $this->normalizeDeltas($legacy);
+
+        $hasFever = filter_var($data['has_fever'] ?? $current?->has_fever ?? $template?->has_fever ?? false, FILTER_VALIDATE_BOOLEAN);
+        $hasUltimate = filter_var(
+            $data['has_ultimate_fever'] ?? $current?->has_ultimate_fever ?? $template?->has_ultimate_fever ?? false,
+            FILTER_VALIDATE_BOOLEAN
+        );
+        if ($hasUltimate) {
+            $hasFever = true;
+        }
+
+        $lightning = $this->normalizeDeltas(
+            $data['lightning_score_deltas']
+                ?? $current?->lightning_score_deltas
+                ?? $template?->default_lightning_score_deltas
+                ?? $base
+        );
+        $normal = $this->normalizeDeltas(
+            $data['buzzer_normal_score_deltas']
+                ?? $current?->buzzer_normal_score_deltas
+                ?? $template?->default_buzzer_normal_score_deltas
+                ?? $base
+        );
+        $fever = $hasFever
+            ? $this->normalizeDeltas(
+                $data['buzzer_fever_score_deltas']
+                    ?? $current?->buzzer_fever_score_deltas
+                    ?? $template?->default_buzzer_fever_score_deltas
+                    ?? $base
+            )
+            : null;
+        $ultimate = $hasUltimate
+            ? $this->normalizeDeltas(
+                $data['buzzer_ultimate_score_deltas']
+                    ?? $current?->buzzer_ultimate_score_deltas
+                    ?? $template?->default_buzzer_ultimate_score_deltas
+                    ?? $base
+            )
+            : null;
+
+        return [
+            'has_fever' => $hasFever,
+            'has_ultimate_fever' => $hasUltimate,
+            'lightning_score_deltas' => $lightning,
+            'buzzer_normal_score_deltas' => $normal,
+            'buzzer_fever_score_deltas' => $fever,
+            'buzzer_ultimate_score_deltas' => $ultimate,
+        ];
+    }
+
+    private function normalizeDeltas(?array $values): array
+    {
+        $clean = collect($values ?? [])
+            ->map(fn ($value) => is_numeric($value) ? (int) $value : null)
+            ->filter(fn ($value) => $value !== null)
+            ->values()
+            ->all();
+
+        return count($clean) > 0 ? $clean : self::DEFAULT_DELTAS;
     }
 }
