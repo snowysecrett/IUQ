@@ -2,11 +2,11 @@
 
 namespace App\Models;
 
+use App\Support\MediaPath;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Str;
 
 class Team extends Model
 {
@@ -35,14 +35,6 @@ class Team extends Model
 
     public function getIconUrlAttribute(): ?string
     {
-        if (!$this->icon_path) {
-            return null;
-        }
-
-        if (Str::startsWith($this->icon_path, ['http://', 'https://'])) {
-            return $this->icon_path;
-        }
-
-        return '/storage/'.ltrim($this->icon_path, '/');
+        return MediaPath::toUrl($this->icon_path);
     }
 }

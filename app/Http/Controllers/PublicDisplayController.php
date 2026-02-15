@@ -4,9 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Round;
 use App\Models\Tournament;
+use App\Support\MediaPath;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -29,7 +29,7 @@ class PublicDisplayController extends Controller
         $selectedRound = null;
 
         if ($selectedTournament) {
-            $selectedTournament->setAttribute('logo_url', $this->resolveLogoUrl($selectedTournament->logo_path));
+            $selectedTournament->setAttribute('logo_url', MediaPath::toUrl($selectedTournament->logo_path));
             $rounds = $selectedTournament->rounds()->orderBy('sort_order')->orderBy('id')->get(['id', 'name']);
             $selectedRound = $roundId
                 ? $selectedTournament->rounds()->with(['participants.team', 'scores', 'result.entries'])->find($roundId)
@@ -42,7 +42,7 @@ class PublicDisplayController extends Controller
             if ($selectedRound) {
                 $selectedRound->setRelation('participants', $selectedRound->participants->map(function ($participant) {
                     $iconPath = $participant->icon_snapshot_path ?: $participant->team?->icon_path;
-                    $participant->setAttribute('icon_url', $this->resolveLogoUrl($iconPath));
+                    $participant->setAttribute('icon_url', MediaPath::toUrl($iconPath));
 
                     return $participant;
                 }));
@@ -55,19 +55,6 @@ class PublicDisplayController extends Controller
             'selectedTournament' => $selectedTournament,
             'selectedRound' => $selectedRound,
         ]);
-    }
-
-    private function resolveLogoUrl(?string $logoPath): ?string
-    {
-        if (!$logoPath) {
-            return null;
-        }
-
-        if (Str::startsWith($logoPath, ['http://', 'https://'])) {
-            return $logoPath;
-        }
-
-        return '/storage/'.ltrim($logoPath, '/');
     }
 
     public function state(Round $round): JsonResponse
@@ -95,7 +82,7 @@ class PublicDisplayController extends Controller
             'participants' => $round->participants->map(fn ($participant) => [
                 'slot' => $participant->slot,
                 'name' => $participant->display_name_snapshot ?? ("Team {$participant->slot}"),
-                'icon_url' => $this->resolveLogoUrl($participant->icon_snapshot_path ?: $participant->team?->icon_path),
+                'icon_url' => MediaPath::toUrl($participant->icon_snapshot_path ?: $participant->team?->icon_path),
             ])->values(),
             'scores' => $scoreRows,
         ]);

@@ -3,12 +3,12 @@
 namespace App\Events;
 
 use App\Models\Round;
+use App\Support\MediaPath;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Str;
 
 class RoundUpdated implements ShouldBroadcastNow
 {
@@ -53,22 +53,9 @@ class RoundUpdated implements ShouldBroadcastNow
             'participants' => $round->participants->map(fn ($participant) => [
                 'slot' => $participant->slot,
                 'name' => $participant->display_name_snapshot ?? ("Team {$participant->slot}"),
-                'icon_url' => $this->resolveLogoUrl($participant->icon_snapshot_path ?: $participant->team?->icon_path),
+                'icon_url' => MediaPath::toUrl($participant->icon_snapshot_path ?: $participant->team?->icon_path),
             ])->values(),
             'scores' => $scoreRows,
         ];
-    }
-
-    private function resolveLogoUrl(?string $path): ?string
-    {
-        if (!$path) {
-            return null;
-        }
-
-        if (Str::startsWith($path, ['http://', 'https://'])) {
-            return $path;
-        }
-
-        return '/storage/'.ltrim($path, '/');
     }
 }

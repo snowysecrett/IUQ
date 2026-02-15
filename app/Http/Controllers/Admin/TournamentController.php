@@ -137,6 +137,8 @@ class TournamentController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        $mediaDisk = config('media.disk', 'public');
+
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'year' => ['required', 'integer', 'min:2000', 'max:2100'],
@@ -147,7 +149,7 @@ class TournamentController extends Controller
         ]);
 
         if ($request->hasFile('logo_file')) {
-            $data['logo_path'] = $request->file('logo_file')->store('tournament-logos', 'public');
+            $data['logo_path'] = $request->file('logo_file')->store('tournament-logos', $mediaDisk);
         }
 
         unset($data['logo_file']);
@@ -269,6 +271,7 @@ class TournamentController extends Controller
     public function update(Request $request, Tournament $tournament): RedirectResponse
     {
         abort_unless($request->user()?->role === User::ROLE_SUPER_ADMIN, 403);
+        $mediaDisk = config('media.disk', 'public');
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
@@ -286,9 +289,13 @@ class TournamentController extends Controller
 
         if ($request->hasFile('logo_file')) {
             if ($tournament->logo_path && !Str::startsWith($tournament->logo_path, ['http://', 'https://'])) {
-                Storage::disk('public')->delete($tournament->logo_path);
+                Storage::disk($mediaDisk)->delete($tournament->logo_path);
+
+                if ($mediaDisk !== 'public') {
+                    Storage::disk('public')->delete($tournament->logo_path);
+                }
             }
-            $data['logo_path'] = $request->file('logo_file')->store('tournament-logos', 'public');
+            $data['logo_path'] = $request->file('logo_file')->store('tournament-logos', $mediaDisk);
         }
 
         unset($data['logo_file']);

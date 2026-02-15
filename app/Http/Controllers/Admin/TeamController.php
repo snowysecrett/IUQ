@@ -20,6 +20,8 @@ class TeamController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        $mediaDisk = config('media.disk', 'public');
+
         $data = $request->validate([
             'university_name' => ['required', 'string', 'max:255'],
             'team_name' => ['required', 'string', 'max:255'],
@@ -29,7 +31,7 @@ class TeamController extends Controller
         ]);
 
         if ($request->hasFile('icon_file')) {
-            $data['icon_path'] = $request->file('icon_file')->store('team-icons', 'public');
+            $data['icon_path'] = $request->file('icon_file')->store('team-icons', $mediaDisk);
         }
 
         unset($data['icon_file']);
@@ -40,6 +42,8 @@ class TeamController extends Controller
 
     public function update(Request $request, Team $team): RedirectResponse
     {
+        $mediaDisk = config('media.disk', 'public');
+
         $data = $request->validate([
             'university_name' => ['required', 'string', 'max:255'],
             'team_name' => ['required', 'string', 'max:255'],
@@ -49,7 +53,7 @@ class TeamController extends Controller
         ]);
 
         if ($request->hasFile('icon_file')) {
-            $data['icon_path'] = $request->file('icon_file')->store('team-icons', 'public');
+            $data['icon_path'] = $request->file('icon_file')->store('team-icons', $mediaDisk);
         }
 
         unset($data['icon_file']);
