@@ -132,14 +132,6 @@ class RoundController extends Controller
         $newDefaultScore = $data['default_score'] ?? $round->default_score;
         $defaultScoreChanged = (int) $newDefaultScore !== (int) $round->default_score;
 
-        if ($data['status'] === 'live') {
-            Round::query()
-                ->where('tournament_id', $round->tournament_id)
-                ->where('id', '!=', $round->id)
-                ->where('status', 'live')
-                ->update(['status' => 'completed']);
-        }
-
         $round->update([
             ...$data,
             'default_score' => $newDefaultScore,

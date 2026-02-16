@@ -114,12 +114,6 @@ class ControlController extends Controller
 
             switch ($data['action']) {
                 case 'start_competition':
-                    Round::query()
-                        ->where('tournament_id', $lockedRound->tournament_id)
-                        ->where('id', '!=', $lockedRound->id)
-                        ->where('status', 'live')
-                        ->lockForUpdate()
-                        ->update(['status' => 'completed']);
                     $lockedRound->update(['status' => 'live']);
                     $this->logAction($request, $lockedRound, 'start_competition', []);
                     return 'Round updated.';

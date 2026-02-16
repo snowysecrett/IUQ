@@ -120,10 +120,10 @@ class IuqSafetyChecksTest extends TestCase
             ->assertSessionHasErrors('participants.0.team_id');
     }
 
-    public function test_approved_admin_can_clone_rules_only_tournament_with_clean_runtime_data(): void
+    public function test_superadmin_can_clone_rules_only_tournament_with_clean_runtime_data(): void
     {
-        $admin = User::factory()->create([
-            'role' => User::ROLE_ADMIN,
+        $superAdmin = User::factory()->create([
+            'role' => User::ROLE_SUPER_ADMIN,
             'approved_at' => now(),
         ]);
 
@@ -203,7 +203,7 @@ class IuqSafetyChecksTest extends TestCase
 
         $result = RoundResult::query()->create([
             'round_id' => $round->id,
-            'finalized_by_user_id' => $admin->id,
+            'finalized_by_user_id' => $superAdmin->id,
             'finalized_at' => now(),
             'is_overridden' => false,
             'is_stale' => false,
@@ -228,20 +228,20 @@ class IuqSafetyChecksTest extends TestCase
             'target_slot' => 1,
             'is_active' => true,
             'priority' => 0,
-            'created_by_user_id' => $admin->id,
+            'created_by_user_id' => $superAdmin->id,
         ]);
 
         AdvancementLog::query()->create([
             'tournament_id' => $source->id,
             'rule_id' => $rule->id,
-            'user_id' => $admin->id,
+            'user_id' => $superAdmin->id,
             'source_type' => 'round',
             'source_round_id' => $round->id,
             'status' => 'applied',
             'message' => 'seed log',
         ]);
 
-        $this->actingAs($admin)
+        $this->actingAs($superAdmin)
             ->post(route('admin.tournaments.clone-rules'), [
                 'source_tournament_id' => $source->id,
                 'name' => 'IUQ 2031',
