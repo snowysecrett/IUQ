@@ -11,7 +11,10 @@ use Illuminate\Http\Request;
 
 class RoundTemplateController extends Controller
 {
-    private const DEFAULT_DELTAS = [20, 10, -10];
+    private const DEFAULT_LIGHTNING_DELTAS = [20];
+    private const DEFAULT_BUZZER_NORMAL_DELTAS = [20, 10, -10];
+    private const DEFAULT_BUZZER_FEVER_DELTAS = [30, 15, -15];
+    private const DEFAULT_BUZZER_ULTIMATE_DELTAS = [40, 20, -20];
 
     public function store(Request $request, Tournament $tournament): RedirectResponse
     {
@@ -110,8 +113,8 @@ class RoundTemplateController extends Controller
     {
         $legacy = $data['default_score_deltas']
             ?? $current?->default_score_deltas
-            ?? self::DEFAULT_DELTAS;
-        $base = $this->normalizeDeltas($legacy);
+            ?? self::DEFAULT_BUZZER_NORMAL_DELTAS;
+        $base = $this->normalizeDeltas($legacy, self::DEFAULT_BUZZER_NORMAL_DELTAS);
 
         $hasFever = filter_var($data['has_fever'] ?? $current?->has_fever ?? false, FILTER_VALIDATE_BOOLEAN);
         $hasUltimate = filter_var($data['has_ultimate_fever'] ?? $current?->has_ultimate_fever ?? false, FILTER_VALIDATE_BOOLEAN);
@@ -122,25 +125,29 @@ class RoundTemplateController extends Controller
         $lightning = $this->normalizeDeltas(
             $data['default_lightning_score_deltas']
                 ?? $current?->default_lightning_score_deltas
-                ?? $base
+                ?? self::DEFAULT_LIGHTNING_DELTAS,
+            self::DEFAULT_LIGHTNING_DELTAS
         );
         $normal = $this->normalizeDeltas(
             $data['default_buzzer_normal_score_deltas']
                 ?? $current?->default_buzzer_normal_score_deltas
-                ?? $base
+                ?? $base,
+            self::DEFAULT_BUZZER_NORMAL_DELTAS
         );
         $fever = $hasFever
             ? $this->normalizeDeltas(
                 $data['default_buzzer_fever_score_deltas']
                     ?? $current?->default_buzzer_fever_score_deltas
-                    ?? $base
+                    ?? self::DEFAULT_BUZZER_FEVER_DELTAS,
+                self::DEFAULT_BUZZER_FEVER_DELTAS
             )
             : null;
         $ultimate = $hasUltimate
             ? $this->normalizeDeltas(
                 $data['default_buzzer_ultimate_score_deltas']
                     ?? $current?->default_buzzer_ultimate_score_deltas
-                    ?? $base
+                    ?? self::DEFAULT_BUZZER_ULTIMATE_DELTAS,
+                self::DEFAULT_BUZZER_ULTIMATE_DELTAS
             )
             : null;
 
@@ -154,7 +161,7 @@ class RoundTemplateController extends Controller
         ];
     }
 
-    private function normalizeDeltas(?array $values): array
+    private function normalizeDeltas(?array $values, array $fallback): array
     {
         $clean = collect($values ?? [])
             ->map(fn ($value) => is_numeric($value) ? (int) $value : null)
@@ -162,6 +169,6 @@ class RoundTemplateController extends Controller
             ->values()
             ->all();
 
-        return count($clean) > 0 ? $clean : self::DEFAULT_DELTAS;
+        return count($clean) > 0 ? $clean : $fallback;
     }
 }

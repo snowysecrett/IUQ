@@ -28,6 +28,11 @@ const tournamentForm = useForm({
 });
 
 const addTeamForm = useForm({ team_id: '' });
+const DEFAULT_LIGHTNING_DELTAS_TEXT = '20';
+const DEFAULT_BUZZER_NORMAL_DELTAS_TEXT = '20,10,-10';
+const DEFAULT_BUZZER_FEVER_DELTAS_TEXT = '30,15,-15';
+const DEFAULT_BUZZER_ULTIMATE_DELTAS_TEXT = '40,20,-20';
+
 const templateForm = useForm({
     name: '',
     code: '',
@@ -36,10 +41,10 @@ const templateForm = useForm({
     has_fever: false,
     has_ultimate_fever: false,
     sort_order: 0,
-    default_lightning_score_deltas_text: '20,10,-10',
-    default_buzzer_normal_score_deltas_text: '20,10,-10',
-    default_buzzer_fever_score_deltas_text: '20,10,-10',
-    default_buzzer_ultimate_score_deltas_text: '20,10,-10',
+    default_lightning_score_deltas_text: DEFAULT_LIGHTNING_DELTAS_TEXT,
+    default_buzzer_normal_score_deltas_text: DEFAULT_BUZZER_NORMAL_DELTAS_TEXT,
+    default_buzzer_fever_score_deltas_text: DEFAULT_BUZZER_FEVER_DELTAS_TEXT,
+    default_buzzer_ultimate_score_deltas_text: DEFAULT_BUZZER_ULTIMATE_DELTAS_TEXT,
 });
 const groupForm = useForm({
     name: '',
@@ -57,10 +62,10 @@ const roundForm = useForm({
     has_ultimate_fever: false,
     scheduled_start_at: '',
     sort_order: 0,
-    lightning_score_deltas_text: '20,10,-10',
-    buzzer_normal_score_deltas_text: '20,10,-10',
-    buzzer_fever_score_deltas_text: '20,10,-10',
-    buzzer_ultimate_score_deltas_text: '20,10,-10',
+    lightning_score_deltas_text: DEFAULT_LIGHTNING_DELTAS_TEXT,
+    buzzer_normal_score_deltas_text: DEFAULT_BUZZER_NORMAL_DELTAS_TEXT,
+    buzzer_fever_score_deltas_text: DEFAULT_BUZZER_FEVER_DELTAS_TEXT,
+    buzzer_ultimate_score_deltas_text: DEFAULT_BUZZER_ULTIMATE_DELTAS_TEXT,
 });
 const ruleForm = useForm({
     source_type: 'group',
@@ -80,20 +85,34 @@ const parseDeltas = (text) =>
         .map((item) => parseInt(item.trim(), 10))
         .filter((item) => !Number.isNaN(item));
 
-const formatDeltas = (values) => (Array.isArray(values) && values.length > 0 ? values.join(',') : '20,10,-10');
+const formatDeltas = (values, fallback) => (
+    Array.isArray(values) && values.length > 0 ? values.join(',') : fallback
+);
 
 const initRoundUiState = (round) => {
     if (round._lightning_score_deltas_text === undefined) {
-        round._lightning_score_deltas_text = formatDeltas(round.lightning_score_deltas || round.score_deltas);
+        round._lightning_score_deltas_text = formatDeltas(
+            round.lightning_score_deltas || round.score_deltas,
+            DEFAULT_LIGHTNING_DELTAS_TEXT
+        );
     }
     if (round._buzzer_normal_score_deltas_text === undefined) {
-        round._buzzer_normal_score_deltas_text = formatDeltas(round.buzzer_normal_score_deltas || round.score_deltas);
+        round._buzzer_normal_score_deltas_text = formatDeltas(
+            round.buzzer_normal_score_deltas || round.score_deltas,
+            DEFAULT_BUZZER_NORMAL_DELTAS_TEXT
+        );
     }
     if (round._buzzer_fever_score_deltas_text === undefined) {
-        round._buzzer_fever_score_deltas_text = formatDeltas(round.buzzer_fever_score_deltas || round.score_deltas);
+        round._buzzer_fever_score_deltas_text = formatDeltas(
+            round.buzzer_fever_score_deltas || round.score_deltas,
+            DEFAULT_BUZZER_FEVER_DELTAS_TEXT
+        );
     }
     if (round._buzzer_ultimate_score_deltas_text === undefined) {
-        round._buzzer_ultimate_score_deltas_text = formatDeltas(round.buzzer_ultimate_score_deltas || round.score_deltas);
+        round._buzzer_ultimate_score_deltas_text = formatDeltas(
+            round.buzzer_ultimate_score_deltas || round.score_deltas,
+            DEFAULT_BUZZER_ULTIMATE_DELTAS_TEXT
+        );
     }
     if (round.has_fever === undefined || round.has_fever === null) {
         round.has_fever = false;
@@ -250,15 +269,15 @@ const saveRoundDetails = (round) => {
         sort_order: round.sort_order ?? 0,
         has_fever: !!round.has_fever || !!round.has_ultimate_fever,
         has_ultimate_fever: !!round.has_ultimate_fever,
-        lightning_score_deltas: parseDeltas(round._lightning_score_deltas_text || '20,10,-10'),
-        buzzer_normal_score_deltas: parseDeltas(round._buzzer_normal_score_deltas_text || '20,10,-10'),
+        lightning_score_deltas: parseDeltas(round._lightning_score_deltas_text || DEFAULT_LIGHTNING_DELTAS_TEXT),
+        buzzer_normal_score_deltas: parseDeltas(round._buzzer_normal_score_deltas_text || DEFAULT_BUZZER_NORMAL_DELTAS_TEXT),
         buzzer_fever_score_deltas: (round.has_fever || round.has_ultimate_fever)
-            ? parseDeltas(round._buzzer_fever_score_deltas_text || '20,10,-10')
+            ? parseDeltas(round._buzzer_fever_score_deltas_text || DEFAULT_BUZZER_FEVER_DELTAS_TEXT)
             : null,
         buzzer_ultimate_score_deltas: round.has_ultimate_fever
-            ? parseDeltas(round._buzzer_ultimate_score_deltas_text || '20,10,-10')
+            ? parseDeltas(round._buzzer_ultimate_score_deltas_text || DEFAULT_BUZZER_ULTIMATE_DELTAS_TEXT)
             : null,
-        score_deltas: parseDeltas(round._buzzer_normal_score_deltas_text || '20,10,-10'),
+        score_deltas: parseDeltas(round._buzzer_normal_score_deltas_text || DEFAULT_BUZZER_NORMAL_DELTAS_TEXT),
     }, {
         preserveScroll: true,
     });
@@ -424,7 +443,7 @@ const actionLabel = (rule) => rule.action_type === 'eliminate'
                 </div>
                 <p class="mb-3 text-sm text-gray-600">
                     A template is a reusable setup for rounds. Example: teams per round = <strong>3</strong>, score buttons =
-                    <strong>20,10,-10</strong>.
+                    <strong>lightning: 20, buzzer normal: 20,10,-10</strong>.
                 </p>
                 <fieldset :disabled="!isSuperAdmin">
                     <div class="grid gap-3 md:grid-cols-2">
@@ -470,7 +489,7 @@ const actionLabel = (rule) => rule.action_type === 'eliminate'
                         <input
                             v-model="templateForm.default_lightning_score_deltas_text"
                             class="w-full rounded border px-2 py-1"
-                            placeholder="20,10,-10"
+                            placeholder="20"
                         />
                     </label>
                     <label class="block md:col-span-2">
@@ -486,7 +505,7 @@ const actionLabel = (rule) => rule.action_type === 'eliminate'
                         <input
                             v-model="templateForm.default_buzzer_fever_score_deltas_text"
                             class="w-full rounded border px-2 py-1"
-                            placeholder="20,10,-10"
+                            placeholder="30,15,-15"
                         />
                     </label>
                     <label v-if="templateForm.has_ultimate_fever" class="block md:col-span-2">
@@ -494,7 +513,7 @@ const actionLabel = (rule) => rule.action_type === 'eliminate'
                         <input
                             v-model="templateForm.default_buzzer_ultimate_score_deltas_text"
                             class="w-full rounded border px-2 py-1"
-                            placeholder="20,10,-10"
+                            placeholder="40,20,-20"
                         />
                     </label>
                     </div>
@@ -579,7 +598,7 @@ const actionLabel = (rule) => rule.action_type === 'eliminate'
                         <input
                             v-model="roundForm.lightning_score_deltas_text"
                             class="w-full rounded border px-2 py-1"
-                            placeholder="20,10,-10"
+                            placeholder="20"
                         />
                     </label>
                     <label v-if="!isUsingRoundTemplate" class="block md:col-span-2">
@@ -595,7 +614,7 @@ const actionLabel = (rule) => rule.action_type === 'eliminate'
                         <input
                             v-model="roundForm.buzzer_fever_score_deltas_text"
                             class="w-full rounded border px-2 py-1"
-                            placeholder="20,10,-10"
+                            placeholder="30,15,-15"
                         />
                     </label>
                     <label v-if="!isUsingRoundTemplate && roundForm.has_ultimate_fever" class="block md:col-span-2">
@@ -603,7 +622,7 @@ const actionLabel = (rule) => rule.action_type === 'eliminate'
                         <input
                             v-model="roundForm.buzzer_ultimate_score_deltas_text"
                             class="w-full rounded border px-2 py-1"
-                            placeholder="20,10,-10"
+                            placeholder="40,20,-20"
                         />
                     </label>
                     </div>
@@ -951,14 +970,14 @@ const actionLabel = (rule) => rule.action_type === 'eliminate'
                     </label>
                     <div class="rounded border bg-gray-50 p-2 text-xs text-gray-600 md:col-span-4">
                         Score Delta Buttons: comma-separated values shown on the Control page for this phase.
-                        Example <code>20,10,-10</code> creates +20, +10, and -10 buttons.
+                        Example <code>30,15,-15</code> creates +30, +15, and -15 buttons.
                     </div>
                     <label class="block md:col-span-4">
                         <div class="mb-1 text-xs font-semibold text-gray-700">Lightning Round Score Delta Buttons</div>
                         <input
                             v-model="round._lightning_score_deltas_text"
                             class="w-full rounded border px-2 py-1 text-sm"
-                            placeholder="Example: 20,10,-10"
+                            placeholder="Example: 20"
                         />
                     </label>
                     <label class="block md:col-span-4">
@@ -974,7 +993,7 @@ const actionLabel = (rule) => rule.action_type === 'eliminate'
                         <input
                             v-model="round._buzzer_fever_score_deltas_text"
                             class="w-full rounded border px-2 py-1 text-sm"
-                            placeholder="Example: 20,10,-10"
+                            placeholder="Example: 30,15,-15"
                         />
                     </label>
                     <label v-if="round.has_ultimate_fever" class="block md:col-span-4">
@@ -982,7 +1001,7 @@ const actionLabel = (rule) => rule.action_type === 'eliminate'
                         <input
                             v-model="round._buzzer_ultimate_score_deltas_text"
                             class="w-full rounded border px-2 py-1 text-sm"
-                            placeholder="Example: 20,10,-10"
+                            placeholder="Example: 40,20,-20"
                         />
                     </label>
                     <div class="md:col-span-2 flex flex-wrap gap-2">

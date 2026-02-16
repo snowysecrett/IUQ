@@ -26,25 +26,41 @@ const scoreMap = computed(() => {
     return map;
 });
 
-const normalizeDeltas = (values) => (Array.isArray(values) && values.length > 0 ? values : [20, 10, -10]);
+const DEFAULT_LIGHTNING_DELTAS = [20];
+const DEFAULT_BUZZER_NORMAL_DELTAS = [20, 10, -10];
+const DEFAULT_BUZZER_FEVER_DELTAS = [30, 15, -15];
+const DEFAULT_BUZZER_ULTIMATE_DELTAS = [40, 20, -20];
+const normalizeDeltas = (values, fallback) => (Array.isArray(values) && values.length > 0 ? values : fallback);
 
 const currentDeltas = computed(() => {
     if (!props.selectedRound) {
-        return [20, 10, -10];
+        return DEFAULT_LIGHTNING_DELTAS;
     }
 
     const phase = props.selectedRound.phase;
     if (phase === 'lightning') {
-        return normalizeDeltas(props.selectedRound.lightning_score_deltas || props.selectedRound.score_deltas);
+        return normalizeDeltas(
+            props.selectedRound.lightning_score_deltas || props.selectedRound.score_deltas,
+            DEFAULT_LIGHTNING_DELTAS
+        );
     }
     if (phase === 'buzzer_fever') {
-        return normalizeDeltas(props.selectedRound.buzzer_fever_score_deltas || props.selectedRound.buzzer_normal_score_deltas || props.selectedRound.score_deltas);
+        return normalizeDeltas(
+            props.selectedRound.buzzer_fever_score_deltas || props.selectedRound.buzzer_normal_score_deltas || props.selectedRound.score_deltas,
+            DEFAULT_BUZZER_FEVER_DELTAS
+        );
     }
     if (phase === 'buzzer_ultimate_fever') {
-        return normalizeDeltas(props.selectedRound.buzzer_ultimate_score_deltas || props.selectedRound.buzzer_normal_score_deltas || props.selectedRound.score_deltas);
+        return normalizeDeltas(
+            props.selectedRound.buzzer_ultimate_score_deltas || props.selectedRound.buzzer_normal_score_deltas || props.selectedRound.score_deltas,
+            DEFAULT_BUZZER_ULTIMATE_DELTAS
+        );
     }
 
-    return normalizeDeltas(props.selectedRound.buzzer_normal_score_deltas || props.selectedRound.score_deltas);
+    return normalizeDeltas(
+        props.selectedRound.buzzer_normal_score_deltas || props.selectedRound.score_deltas,
+        DEFAULT_BUZZER_NORMAL_DELTAS
+    );
 });
 const isLiveRound = computed(() => props.selectedRound?.status === 'live');
 const phase = computed(() => props.selectedRound?.phase || 'lightning');
