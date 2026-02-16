@@ -28,8 +28,6 @@ Route::get('/', function () {
 
 Route::post('/locale', [LocaleController::class, 'update'])->name('locale.update');
 
-Route::get('/display', [PublicDisplayController::class, 'index'])->name('display.index');
-Route::get('/display/rounds/{round}/state', [PublicDisplayController::class, 'state'])->name('display.round.state');
 Route::get('/timetable', [TimetableController::class, 'index'])->name('timetable.index');
 
 Route::get('/dashboard', function () {
@@ -42,6 +40,9 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
     Route::middleware(['approved_admin'])->group(function () {
+        Route::get('/display', [PublicDisplayController::class, 'index'])->name('display.index');
+        Route::get('/display/rounds/{round}/state', [PublicDisplayController::class, 'state'])->name('display.round.state');
+
         Route::get('/control', [ControlController::class, 'index'])->name('control.index');
         Route::post('/control/rounds/{round}/action', [ControlController::class, 'action'])->name('control.round.action');
 
