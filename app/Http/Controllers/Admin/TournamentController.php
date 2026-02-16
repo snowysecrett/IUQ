@@ -137,6 +137,8 @@ class TournamentController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        abort_unless($request->user()?->role === User::ROLE_SUPER_ADMIN, 403);
+
         $mediaDisk = config('media.disk', 'public');
 
         $data = $request->validate([
@@ -165,6 +167,8 @@ class TournamentController extends Controller
 
     public function cloneRules(Request $request): RedirectResponse
     {
+        abort_unless($request->user()?->role === User::ROLE_SUPER_ADMIN, 403);
+
         $data = $request->validate([
             'source_tournament_id' => ['required', 'exists:tournaments,id'],
             'name' => ['required', 'string', 'max:255'],

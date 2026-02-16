@@ -1,11 +1,15 @@
 <script setup>
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import MainLayout from '@/Layouts/MainLayout.vue';
 import { statusBadgeClass } from '@/composables/useStatusBadge';
+import { computed } from 'vue';
 
 defineProps({
     tournaments: Array,
 });
+
+const page = usePage();
+const isSuperAdmin = computed(() => page.props.auth?.user?.role === 'super_admin');
 
 const form = useForm({
     name: '',
@@ -39,7 +43,7 @@ const submitClone = () => {
 <template>
     <Head title="Tournaments" />
     <MainLayout title="Tournaments">
-        <form @submit.prevent="submit" class="mb-6 grid gap-2 rounded border bg-white p-4 md:grid-cols-5">
+        <form v-if="isSuperAdmin" @submit.prevent="submit" class="mb-6 grid gap-2 rounded border bg-white p-4 md:grid-cols-5">
             <input v-model="form.name" class="rounded border px-2 py-1" placeholder="Tournament name" required />
             <input v-model="form.year" type="number" class="rounded border px-2 py-1" placeholder="Year" required />
             <input v-model="form.scheduled_start_at" type="datetime-local" class="rounded border px-2 py-1" />
@@ -54,8 +58,11 @@ const submitClone = () => {
             <div class="text-xs text-gray-500 md:col-span-2">Upload file overrides Logo URL/path when both are provided.</div>
             <button class="rounded border bg-gray-900 px-3 py-1 text-white md:col-span-5">Create Tournament</button>
         </form>
+        <div v-else class="mb-6 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            Creating tournaments is superadmin only.
+        </div>
 
-        <form @submit.prevent="submitClone" class="mb-6 grid gap-2 rounded border bg-white p-4 md:grid-cols-5">
+        <form v-if="isSuperAdmin" @submit.prevent="submitClone" class="mb-6 grid gap-2 rounded border bg-white p-4 md:grid-cols-5">
             <select v-model="cloneForm.source_tournament_id" class="rounded border px-2 py-1" required>
                 <option disabled value="">Copy rules from...</option>
                 <option v-for="tournament in tournaments" :key="`source-${tournament.id}`" :value="tournament.id">
@@ -68,6 +75,9 @@ const submitClone = () => {
             <div class="rounded border border-blue-200 bg-blue-50 px-2 py-1 text-xs text-blue-800">Copies rules only.</div>
             <button class="rounded border bg-gray-900 px-3 py-1 text-white md:col-span-5">Clone Rules to New Tournament</button>
         </form>
+        <div v-else class="mb-6 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            Cloning tournament rules is superadmin only.
+        </div>
 
         <div class="overflow-auto rounded border bg-white">
             <table class="min-w-full text-sm">
