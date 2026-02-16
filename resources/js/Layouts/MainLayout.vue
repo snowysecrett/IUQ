@@ -16,6 +16,17 @@ const page = usePage();
 const user = computed(() => page.props.auth?.user || null);
 const canManage = computed(() => !!user.value && ['admin', 'super_admin'].includes(user.value.role));
 const isSuperAdmin = computed(() => user.value?.role === 'super_admin');
+const canAccessDisplay = computed(() => {
+    if (!user.value) {
+        return false;
+    }
+
+    if (user.value.role === 'super_admin') {
+        return true;
+    }
+
+    return user.value.role === 'admin' && !!user.value.approved_at;
+});
 const homeHref = computed(() => user.value ? route('dashboard') : '/');
 </script>
 
@@ -29,7 +40,7 @@ const homeHref = computed(() => user.value ? route('dashboard') : '/');
                     <Link v-if="canManage" :href="route('admin.rounds.index')" class="rounded border px-2 py-1 text-sm">{{ t('rounds') }}</Link>
                     <Link v-if="canManage" :href="route('admin.teams.index')" class="rounded border px-2 py-1 text-sm">{{ t('teams') }}</Link>
                     <Link v-if="canManage" :href="route('control.index')" class="rounded border px-2 py-1 text-sm">{{ t('control') }}</Link>
-                    <Link :href="route('display.index')" class="rounded border px-2 py-1 text-sm">{{ t('display') }}</Link>
+                    <Link v-if="canAccessDisplay" :href="route('display.index')" class="rounded border px-2 py-1 text-sm">{{ t('display') }}</Link>
                     <Link :href="route('timetable.index')" class="rounded border px-2 py-1 text-sm">{{ t('timetable') }}</Link>
                     <Link v-if="isSuperAdmin" :href="route('admin.user-approvals.index')" class="rounded border px-2 py-1 text-sm">{{ t('userApprovals') }}</Link>
                 </div>
