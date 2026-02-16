@@ -108,9 +108,6 @@ const removeTeam = (team) => {
             <div class="text-xs text-gray-500 md:col-span-4">Upload file will override URL if both are provided.</div>
             <button class="rounded border bg-gray-900 px-3 py-1 text-white md:col-span-4">Create Team</button>
         </form>
-        <div v-else class="mb-6 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-            Creating teams is superadmin only.
-        </div>
 
         <div class="overflow-auto rounded border bg-white">
             <table class="min-w-full text-sm">
