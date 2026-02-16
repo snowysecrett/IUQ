@@ -1,6 +1,6 @@
 <script setup>
-import { Head, router, useForm } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { Head, router, useForm, usePage } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
 import MainLayout from '@/Layouts/MainLayout.vue';
 
 defineProps({
@@ -14,6 +14,9 @@ const form = useForm({
     icon_path: '',
     icon_file: null,
 });
+
+const page = usePage();
+const isSuperAdmin = computed(() => page.props.auth?.user?.role === 'super_admin');
 
 const submit = () => {
     form.post(route('admin.teams.store'), {
@@ -32,6 +35,10 @@ const editForm = useForm({
 });
 
 const startEdit = (team) => {
+    if (!isSuperAdmin.value) {
+        return;
+    }
+
     editingTeamId.value = team.id;
     editForm.reset();
     editForm.university_name = team.university_name ?? '';
@@ -47,6 +54,10 @@ const cancelEdit = () => {
 };
 
 const submitEdit = (teamId) => {
+    if (!isSuperAdmin.value) {
+        return;
+    }
+
     editForm
         .transform((data) => ({
             ...data,
@@ -62,6 +73,10 @@ const submitEdit = (teamId) => {
 };
 
 const removeTeam = (team) => {
+    if (!isSuperAdmin.value) {
+        return;
+    }
+
     if (!confirm(`Archive team "${team.team_name}"?`)) {
         return;
     }
@@ -75,7 +90,11 @@ const removeTeam = (team) => {
 <template>
     <Head title="Teams" />
     <MainLayout title="Teams">
-        <form @submit.prevent="submit" class="mb-6 grid gap-2 rounded border bg-white p-4 md:grid-cols-4">
+        <form
+            v-if="isSuperAdmin"
+            @submit.prevent="submit"
+            class="mb-6 grid gap-2 rounded border bg-white p-4 md:grid-cols-4"
+        >
             <input v-model="form.university_name" placeholder="University" class="rounded border px-2 py-1" required />
             <input v-model="form.team_name" placeholder="Team name" class="rounded border px-2 py-1" required />
             <input v-model="form.short_name" placeholder="Short name" class="rounded border px-2 py-1" />
@@ -89,6 +108,9 @@ const removeTeam = (team) => {
             <div class="text-xs text-gray-500 md:col-span-4">Upload file will override URL if both are provided.</div>
             <button class="rounded border bg-gray-900 px-3 py-1 text-white md:col-span-4">Create Team</button>
         </form>
+        <div v-else class="mb-6 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            Creating teams is superadmin only.
+        </div>
 
         <div class="overflow-auto rounded border bg-white">
             <table class="min-w-full text-sm">
@@ -114,18 +136,24 @@ const removeTeam = (team) => {
                             <td class="border px-2 py-1">
                                 <div class="flex flex-wrap gap-2">
                                     <button
+                                        v-if="isSuperAdmin"
                                         class="rounded border border-blue-400 px-2 py-1 text-blue-700"
                                         @click="startEdit(team)"
                                     >
                                         Edit
                                     </button>
-                                    <button class="rounded border border-amber-400 px-2 py-1 text-amber-700" @click="removeTeam(team)">
+                                    <button
+                                        v-if="isSuperAdmin"
+                                        class="rounded border border-amber-400 px-2 py-1 text-amber-700"
+                                        @click="removeTeam(team)"
+                                    >
                                         Archive
                                     </button>
+                                    <span v-if="!isSuperAdmin" class="text-xs text-gray-500">Superadmin only</span>
                                 </div>
                             </td>
                         </tr>
-                        <tr v-if="editingTeamId === team.id">
+                        <tr v-if="isSuperAdmin && editingTeamId === team.id">
                             <td colspan="5" class="border bg-gray-50 p-3">
                                 <form @submit.prevent="submitEdit(team.id)" class="grid gap-2 md:grid-cols-4">
                                     <input

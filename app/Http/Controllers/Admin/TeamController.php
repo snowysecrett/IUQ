@@ -6,6 +6,7 @@ use App\Events\RoundUpdated;
 use App\Http\Controllers\Controller;
 use App\Models\Round;
 use App\Models\Team;
+use App\Models\User;
 use Illuminate\Broadcasting\BroadcastException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -24,6 +25,8 @@ class TeamController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        abort_unless($request->user()?->role === User::ROLE_SUPER_ADMIN, 403);
+
         $mediaDisk = config('media.disk', 'public');
 
         $data = $request->validate([
@@ -46,6 +49,8 @@ class TeamController extends Controller
 
     public function update(Request $request, Team $team): RedirectResponse
     {
+        abort_unless($request->user()?->role === User::ROLE_SUPER_ADMIN, 403);
+
         $mediaDisk = config('media.disk', 'public');
 
         $data = $request->validate([
@@ -79,8 +84,10 @@ class TeamController extends Controller
         return back()->with('success', 'Team updated.');
     }
 
-    public function destroy(Team $team): RedirectResponse
+    public function destroy(Request $request, Team $team): RedirectResponse
     {
+        abort_unless($request->user()?->role === User::ROLE_SUPER_ADMIN, 403);
+
         $team->delete();
 
         return back()->with('success', 'Team archived.');
