@@ -231,6 +231,7 @@ class TournamentController extends Controller
                     'default_score' => $round->default_score ?? 100,
                     'status' => 'draft',
                     'phase' => 'lightning',
+                    'hide_public_scores' => (bool) $round->hide_public_scores,
                     'scheduled_start_at' => null,
                     'score_deltas' => $round->score_deltas,
                     'has_fever' => $round->has_fever ?? false,

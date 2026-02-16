@@ -40,6 +40,22 @@ class PublicDisplayController extends Controller
             }
 
             if ($selectedRound) {
+                if ($selectedRound->hide_public_scores) {
+                    $selectedRound->setRelation('scores', $selectedRound->scores->map(function ($score) {
+                        $score->setAttribute('score', null);
+
+                        return $score;
+                    }));
+
+                    if ($selectedRound->result) {
+                        $selectedRound->result->setRelation('entries', $selectedRound->result->entries->map(function ($entry) {
+                            $entry->setAttribute('score', null);
+
+                            return $entry;
+                        }));
+                    }
+                }
+
                 $selectedRound->setRelation('participants', $selectedRound->participants->map(function ($participant) {
                     $resolvedName = $participant->team?->team_name
                         ?: $participant->display_name_snapshot
@@ -64,14 +80,15 @@ class PublicDisplayController extends Controller
     public function state(Round $round): JsonResponse
     {
         $round->load(['participants.team', 'scores', 'result.entries', 'tournament']);
+        $hidePublicScores = (bool) $round->hide_public_scores;
         $scoreRows = $round->result?->entries?->isNotEmpty()
             ? $round->result->entries->map(fn ($entry) => [
                 'slot' => $entry->slot,
-                'score' => $entry->score,
+                'score' => $hidePublicScores ? null : $entry->score,
             ])->values()
             : $round->scores->map(fn ($score) => [
                 'slot' => $score->slot,
-                'score' => $score->score,
+                'score' => $hidePublicScores ? null : $score->score,
             ])->values();
 
         return response()->json([
@@ -79,6 +96,7 @@ class PublicDisplayController extends Controller
             'name' => $round->name,
             'status' => $round->status,
             'phase' => $round->phase,
+            'hide_public_scores' => $hidePublicScores,
             'tournament' => [
                 'id' => $round->tournament->id,
                 'name' => $round->tournament->name,

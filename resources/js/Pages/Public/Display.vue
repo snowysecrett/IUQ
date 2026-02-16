@@ -59,6 +59,15 @@ const scoreMap = computed(() => {
     return map;
 });
 
+const scoreText = (slot) => {
+    if (liveRound.value?.hide_public_scores) {
+        return '???';
+    }
+
+    const value = scoreMap.value[slot];
+    return value === undefined || value === null ? 0 : value;
+};
+
 const selectTournament = (event) => {
     router.get(route('display.index'), { tournament_id: event.target.value }, { preserveState: true });
 };
@@ -150,7 +159,15 @@ onBeforeUnmount(() => {
         </div>
 
         <div v-if="liveRound" class="rounded border bg-white">
-            <div class="border-b px-4 py-3 text-center text-2xl font-semibold">{{ liveRound.name }}</div>
+            <div class="flex items-center justify-between border-b px-4 py-3">
+                <div class="text-2xl font-semibold">{{ liveRound.name }}</div>
+                <span
+                    v-if="liveRound.hide_public_scores"
+                    class="rounded border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800"
+                >
+                    Scores Hidden
+                </span>
+            </div>
             <div class="grid" :style="`grid-template-columns: repeat(${liveRound.participants.length || 1}, minmax(0, 1fr));`">
                 <div
                     v-for="(participant, index) in liveRound.participants"
@@ -172,7 +189,7 @@ onBeforeUnmount(() => {
                     <div class="border-b px-3 py-6 text-center text-4xl font-semibold">
                         {{ participant.display_name_snapshot || `Team ${participant.slot}` }}
                     </div>
-                    <div class="px-3 py-10 text-center text-7xl font-light">{{ scoreMap[participant.slot] || 0 }}</div>
+                    <div class="px-3 py-10 text-center text-7xl font-light">{{ scoreText(participant.slot) }}</div>
                 </div>
             </div>
             <div class="border-t px-4 py-4 text-center">

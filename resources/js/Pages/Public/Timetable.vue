@@ -2,12 +2,14 @@
 import { Head, router } from '@inertiajs/vue3';
 import MainLayout from '@/Layouts/MainLayout.vue';
 import { statusBadgeClass } from '@/composables/useStatusBadge';
+import { useI18n } from '@/composables/useI18n';
 
 const props = defineProps({
     years: Array,
     tournaments: Array,
     selectedTournament: Object,
 });
+const { t } = useI18n();
 
 const filterYear = (event) => {
     const value = event.target.value;
@@ -30,12 +32,25 @@ const formatScheduledAt = (value) => {
 };
 
 const scoreFor = (round, slot) => {
+    if (round.hide_public_scores) {
+        return '???';
+    }
+
     const resultScore = round.result?.entries?.find((item) => item.slot === slot)?.score;
     if (resultScore !== undefined && resultScore !== null) {
         return resultScore;
     }
 
     return round.scores.find((item) => item.slot === slot)?.score ?? 0;
+};
+
+const phaseLabel = (phase) => {
+    if (phase === 'lightning') return t('lightningRound');
+    if (phase === 'buzzer' || phase === 'buzzer_normal') return t('buzzerNormalRound');
+    if (phase === 'buzzer_fever') return t('buzzerFeverRound');
+    if (phase === 'buzzer_ultimate_fever') return t('buzzerUltimateRound');
+
+    return phase || '-';
 };
 </script>
 
@@ -56,11 +71,20 @@ const scoreFor = (round, slot) => {
 
         <div v-if="selectedTournament" class="space-y-3">
             <div v-for="round in selectedTournament.rounds" :key="round.id" class="overflow-auto rounded border bg-white">
-                <div class="border-b bg-gray-50 px-3 py-2 text-lg font-semibold">{{ round.name }}</div>
+                <div class="flex items-center justify-between border-b bg-gray-50 px-3 py-2">
+                    <div class="text-lg font-semibold">{{ round.name }}</div>
+                    <span
+                        v-if="round.hide_public_scores"
+                        class="rounded border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800"
+                    >
+                        Scores Hidden
+                    </span>
+                </div>
                 <table class="min-w-full text-sm">
                     <thead>
                         <tr>
                             <th class="border px-2 py-1 text-left">Status</th>
+                            <th class="border px-2 py-1 text-left">Current Phase</th>
                             <th class="border px-2 py-1 text-left">Scheduled</th>
                             <th class="border px-2 py-1 text-left">Teams</th>
                             <th class="border px-2 py-1 text-left">Scores</th>
@@ -73,6 +97,7 @@ const scoreFor = (round, slot) => {
                                     {{ round.status }}
                                 </span>
                             </td>
+                            <td class="border px-2 py-1">{{ phaseLabel(round.phase) }}</td>
                             <td class="border px-2 py-1">{{ formatScheduledAt(round.scheduled_start_at) }}</td>
                             <td class="border px-2 py-1">
                                 <span v-for="participant in round.participants" :key="participant.id" class="mr-2 inline-block rounded bg-gray-100 px-2 py-0.5">

@@ -31,14 +31,15 @@ class RoundUpdated implements ShouldBroadcastNow
     public function broadcastWith(): array
     {
         $round = $this->round->load(['participants.team', 'scores', 'result.entries', 'tournament']);
+        $hidePublicScores = (bool) $round->hide_public_scores;
         $scoreRows = $round->result?->entries?->isNotEmpty()
             ? $round->result->entries->map(fn ($entry) => [
                 'slot' => $entry->slot,
-                'score' => $entry->score,
+                'score' => $hidePublicScores ? null : $entry->score,
             ])->values()
             : $round->scores->map(fn ($score) => [
                 'slot' => $score->slot,
-                'score' => $score->score,
+                'score' => $hidePublicScores ? null : $score->score,
             ])->values();
 
         return [
@@ -46,6 +47,7 @@ class RoundUpdated implements ShouldBroadcastNow
             'name' => $round->name,
             'status' => $round->status,
             'phase' => $round->phase,
+            'hide_public_scores' => $hidePublicScores,
             'tournament' => [
                 'id' => $round->tournament->id,
                 'name' => $round->tournament->name,

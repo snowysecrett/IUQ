@@ -19,6 +19,7 @@ class Round extends Model
         'default_score',
         'status',
         'phase',
+        'hide_public_scores',
         'has_fever',
         'has_ultimate_fever',
         'scheduled_start_at',
@@ -40,6 +41,7 @@ class Round extends Model
             'buzzer_fever_score_deltas' => 'array',
             'buzzer_ultimate_score_deltas' => 'array',
             'default_score' => 'integer',
+            'hide_public_scores' => 'boolean',
             'has_fever' => 'boolean',
             'has_ultimate_fever' => 'boolean',
         ];

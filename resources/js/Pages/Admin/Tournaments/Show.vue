@@ -60,6 +60,7 @@ const roundForm = useForm({
     default_score: 100,
     has_fever: false,
     has_ultimate_fever: false,
+    hide_public_scores: false,
     scheduled_start_at: '',
     sort_order: 0,
     lightning_score_deltas_text: DEFAULT_LIGHTNING_DELTAS_TEXT,
@@ -119,6 +120,9 @@ const initRoundUiState = (round) => {
     }
     if (round.has_ultimate_fever === undefined || round.has_ultimate_fever === null) {
         round.has_ultimate_fever = false;
+    }
+    if (round.hide_public_scores === undefined || round.hide_public_scores === null) {
+        round.hide_public_scores = false;
     }
     if (round.phase === 'buzzer') {
         round.phase = 'buzzer_normal';
@@ -213,6 +217,7 @@ const createRound = () => {
         group_id: data.group_id || null,
         teams_per_round: data.round_template_id ? null : Number(data.teams_per_round),
         default_score: data.default_score === '' || data.default_score === null ? null : Number(data.default_score),
+        hide_public_scores: !!data.hide_public_scores,
         has_fever: data.round_template_id ? null : (!!data.has_fever || !!data.has_ultimate_fever),
         has_ultimate_fever: data.round_template_id ? null : !!data.has_ultimate_fever,
         lightning_score_deltas: data.round_template_id ? null : parseDeltas(data.lightning_score_deltas_text),
@@ -237,6 +242,7 @@ const createRound = () => {
             'scheduled_start_at',
             'sort_order',
             'default_score',
+            'hide_public_scores',
             'has_fever',
             'has_ultimate_fever',
             'lightning_score_deltas_text',
@@ -265,6 +271,7 @@ const saveRoundDetails = (round) => {
         phase: round.phase,
         teams_per_round: round.teams_per_round,
         default_score: round._default_score === '' || round._default_score === null ? 100 : Number(round._default_score),
+        hide_public_scores: !!round.hide_public_scores,
         scheduled_start_at: round._scheduled_start_at_local || null,
         sort_order: round.sort_order ?? 0,
         has_fever: !!round.has_fever || !!round.has_ultimate_fever,
@@ -592,6 +599,15 @@ const actionLabel = (rule) => rule.action_type === 'eliminate'
                             </label>
                         </div>
                         <div class="mt-1 text-xs text-gray-500">Ultimate Fever implies Fever.</div>
+                    </label>
+                    <label class="block md:col-span-2">
+                        <div class="mb-1 text-sm font-medium text-gray-700">Public Score Visibility</div>
+                        <div class="flex flex-wrap gap-4 rounded border px-3 py-2 text-sm">
+                            <label class="inline-flex items-center gap-2">
+                                <input v-model="roundForm.hide_public_scores" type="checkbox" />
+                                <span>Hide scores on Timetable/Display (show ???)</span>
+                            </label>
+                        </div>
                     </label>
                     <label v-if="!isUsingRoundTemplate" class="block md:col-span-2">
                         <div class="mb-1 text-sm font-medium text-gray-700">Lightning Score Deltas</div>
@@ -967,6 +983,10 @@ const actionLabel = (rule) => rule.action_type === 'eliminate'
                     <label class="inline-flex items-center justify-between rounded border px-2 py-1 text-sm md:col-span-1">
                         <span class="mr-2">Ultimate</span>
                         <input v-model="round.has_ultimate_fever" type="checkbox" />
+                    </label>
+                    <label class="inline-flex items-center justify-between rounded border px-2 py-1 text-sm md:col-span-2">
+                        <span class="mr-2">Hide Public Scores</span>
+                        <input v-model="round.hide_public_scores" type="checkbox" />
                     </label>
                     <div class="rounded border bg-gray-50 p-2 text-xs text-gray-600 md:col-span-4">
                         Score Delta Buttons: comma-separated values shown on the Control page for this phase.
