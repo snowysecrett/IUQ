@@ -350,8 +350,8 @@ const actionLabel = (rule) => rule.action_type === 'eliminate'
 <template>
     <Head :title="tournament.name" />
     <MainLayout :title="tournament.name">
-        <div class="grid gap-4 lg:grid-cols-2">
-            <form @submit.prevent="updateTournament" class="rounded border bg-white p-4">
+        <div class="grid gap-4" :class="isSuperAdmin ? 'lg:grid-cols-2' : 'lg:grid-cols-1'">
+            <form v-if="isSuperAdmin" @submit.prevent="updateTournament" class="rounded border bg-white p-4">
                 <h2 class="mb-2 font-semibold">Tournament Settings</h2>
                 <fieldset :disabled="!isSuperAdmin">
                     <div class="grid gap-2 md:grid-cols-2">
@@ -376,10 +376,7 @@ const actionLabel = (rule) => rule.action_type === 'eliminate'
                         </div>
                     </div>
                 </fieldset>
-                <button v-if="isSuperAdmin" class="mt-3 rounded border bg-gray-900 px-3 py-1 text-white">Save Tournament</button>
-                <div v-else class="mt-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                    Tournament settings are editable by superadmin only.
-                </div>
+                <button class="mt-3 rounded border bg-gray-900 px-3 py-1 text-white">Save Tournament</button>
             </form>
 
             <div class="rounded border bg-white p-4">
@@ -409,7 +406,7 @@ const actionLabel = (rule) => rule.action_type === 'eliminate'
             </div>
         </div>
 
-        <div class="mt-4 grid gap-4 lg:grid-cols-2">
+        <div v-if="isSuperAdmin" class="mt-4 grid gap-4 lg:grid-cols-2">
             <form @submit.prevent="createGroup" class="rounded border bg-white p-4">
                 <h2 class="mb-2 font-semibold">Groups</h2>
                 <p class="mb-3 text-sm text-gray-600">
@@ -431,10 +428,7 @@ const actionLabel = (rule) => rule.action_type === 'eliminate'
                         </label>
                     </div>
                 </fieldset>
-                <button v-if="isSuperAdmin" class="mt-3 rounded border bg-gray-900 px-3 py-1 text-white">Create Group</button>
-                <div v-else class="mt-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                    Creating groups is superadmin only.
-                </div>
+                <button class="mt-3 rounded border bg-gray-900 px-3 py-1 text-white">Create Group</button>
             </form>
 
             <form @submit.prevent="createTemplate" class="rounded border bg-white p-4">
@@ -525,10 +519,7 @@ const actionLabel = (rule) => rule.action_type === 'eliminate'
                     </label>
                     </div>
                 </fieldset>
-                <button v-if="isSuperAdmin" class="mt-3 rounded border bg-gray-900 px-3 py-1 text-white">Create Template</button>
-                <div v-else class="mt-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                    Round template editing is superadmin only.
-                </div>
+                <button class="mt-3 rounded border bg-gray-900 px-3 py-1 text-white">Create Template</button>
             </form>
 
             <form @submit.prevent="createRound" class="rounded border bg-white p-4">
@@ -643,14 +634,11 @@ const actionLabel = (rule) => rule.action_type === 'eliminate'
                     </label>
                     </div>
                 </fieldset>
-                <button v-if="isSuperAdmin" class="mt-3 rounded border bg-gray-900 px-3 py-1 text-white">Create Round</button>
-                <div v-else class="mt-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                    Creating rounds is superadmin only.
-                </div>
+                <button class="mt-3 rounded border bg-gray-900 px-3 py-1 text-white">Create Round</button>
             </form>
         </div>
 
-        <div class="mt-4 rounded border bg-white p-4">
+        <div v-if="isSuperAdmin" class="mt-4 rounded border bg-white p-4">
             <h2 class="mb-3 font-semibold">Group Standings</h2>
             <div v-if="groupSummaries.length === 0" class="rounded border bg-gray-50 p-3 text-sm text-gray-600">
                 No groups created yet.
@@ -693,7 +681,7 @@ const actionLabel = (rule) => rule.action_type === 'eliminate'
             </div>
         </div>
 
-        <div class="mt-4 grid gap-4 lg:grid-cols-2">
+        <div v-if="isSuperAdmin" class="mt-4 grid gap-4 lg:grid-cols-2">
             <form @submit.prevent="createAdvancementRule" class="rounded border bg-white p-4">
                 <h2 class="mb-2 font-semibold">Advancement Rules</h2>
                 <p class="mb-3 text-sm text-gray-600">
@@ -757,10 +745,7 @@ const actionLabel = (rule) => rule.action_type === 'eliminate'
                         </label>
                     </div>
                 </fieldset>
-                <button v-if="isSuperAdmin" class="mt-3 rounded border bg-gray-900 px-3 py-1 text-white">Create Rule</button>
-                <div v-else class="mt-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                    Advancement rule editing is superadmin only.
-                </div>
+                <button class="mt-3 rounded border bg-gray-900 px-3 py-1 text-white">Create Rule</button>
             </form>
 
             <div class="rounded border bg-white p-4">
@@ -822,7 +807,7 @@ const actionLabel = (rule) => rule.action_type === 'eliminate'
             </div>
         </div>
 
-        <div class="mt-4 rounded border bg-white p-4">
+        <div v-if="isSuperAdmin" class="mt-4 rounded border bg-white p-4">
             <h2 class="mb-2 font-semibold">Advancement Log</h2>
             <p class="mb-3 text-sm text-gray-600">
                 Tracks auto-advancement decisions, manual-lock blocks, eliminated outcomes, and stale-result marks.
