@@ -638,7 +638,7 @@ const actionLabel = (rule) => rule.action_type === 'eliminate'
             </form>
         </div>
 
-        <div v-if="isSuperAdmin" class="mt-4 rounded border bg-white p-4">
+        <div class="mt-4 rounded border bg-white p-4">
             <h2 class="mb-3 font-semibold">Group Standings</h2>
             <div v-if="groupSummaries.length === 0" class="rounded border bg-gray-50 p-3 text-sm text-gray-600">
                 No groups created yet.
@@ -681,8 +681,8 @@ const actionLabel = (rule) => rule.action_type === 'eliminate'
             </div>
         </div>
 
-        <div v-if="isSuperAdmin" class="mt-4 grid gap-4 lg:grid-cols-2">
-            <form @submit.prevent="createAdvancementRule" class="rounded border bg-white p-4">
+        <div class="mt-4 grid gap-4" :class="isSuperAdmin ? 'lg:grid-cols-2' : 'lg:grid-cols-1'">
+            <form v-if="isSuperAdmin" @submit.prevent="createAdvancementRule" class="rounded border bg-white p-4">
                 <h2 class="mb-2 font-semibold">Advancement Rules</h2>
                 <p class="mb-3 text-sm text-gray-600">
                     Configure auto-advancement from either a completed round ranking or a completed group ranking.
@@ -762,7 +762,7 @@ const actionLabel = (rule) => rule.action_type === 'eliminate'
                                 <th class="border px-2 py-1 text-left">Action</th>
                                 <th class="border px-2 py-1 text-left">Priority</th>
                                 <th class="border px-2 py-1 text-left">Active</th>
-                                <th class="border px-2 py-1 text-left">Actions</th>
+                                <th v-if="isSuperAdmin" class="border px-2 py-1 text-left">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -772,28 +772,28 @@ const actionLabel = (rule) => rule.action_type === 'eliminate'
                                 <td class="border px-2 py-1">{{ actionLabel(rule) }}</td>
                                 <td class="border px-2 py-1">
                                     <input
+                                        v-if="isSuperAdmin"
                                         :value="rule.priority"
                                         type="number"
                                         min="0"
                                         class="w-20 rounded border px-2 py-1"
-                                        :disabled="!isSuperAdmin"
                                         @change="updateAdvancementRule(rule, { priority: Number($event.target.value || 0) })"
                                     />
+                                    <span v-else>{{ rule.priority }}</span>
                                 </td>
                                 <td class="border px-2 py-1">
-                                    <label class="inline-flex items-center gap-2">
+                                    <label v-if="isSuperAdmin" class="inline-flex items-center gap-2">
                                         <input
                                             type="checkbox"
                                             :checked="rule.is_active"
-                                            :disabled="!isSuperAdmin"
                                             @change="updateAdvancementRule(rule, { is_active: $event.target.checked })"
                                         />
                                         <span>{{ rule.is_active ? 'Yes' : 'No' }}</span>
                                     </label>
+                                    <span v-else>{{ rule.is_active ? 'Yes' : 'No' }}</span>
                                 </td>
-                                <td class="border px-2 py-1">
+                                <td v-if="isSuperAdmin" class="border px-2 py-1">
                                     <button
-                                        v-if="isSuperAdmin"
                                         class="rounded border border-red-300 px-2 py-1 text-red-700"
                                         @click="deleteAdvancementRule(rule)"
                                     >
@@ -807,7 +807,7 @@ const actionLabel = (rule) => rule.action_type === 'eliminate'
             </div>
         </div>
 
-        <div v-if="isSuperAdmin" class="mt-4 rounded border bg-white p-4">
+        <div class="mt-4 rounded border bg-white p-4">
             <h2 class="mb-2 font-semibold">Advancement Log</h2>
             <p class="mb-3 text-sm text-gray-600">
                 Tracks auto-advancement decisions, manual-lock blocks, eliminated outcomes, and stale-result marks.
