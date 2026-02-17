@@ -81,21 +81,41 @@ class RoundListController extends Controller
 
             $winner = null;
             if ($round->status === 'completed') {
-                foreach ($participants as $participant) {
-                    $candidateTeamRank = $participant['team_id'] ?? (1_000_000 + $participant['slot']);
+                $rankOne = $participants
+                    ->filter(fn ($participant) => $participant['rank'] === 1)
+                    ->sort(function ($a, $b) {
+                        $aTeamRank = $a['team_id'] ?? (1_000_000 + $a['slot']);
+                        $bTeamRank = $b['team_id'] ?? (1_000_000 + $b['slot']);
 
-                    if (
-                        $winner === null
-                        || $participant['score'] > $winner['score']
-                        || ($participant['score'] === $winner['score'] && $candidateTeamRank < $winner['team_rank'])
-                    ) {
-                        $winner = [
-                            'slot' => $participant['slot'],
-                            'team_id' => $participant['team_id'],
-                            'name' => $participant['name'],
-                            'score' => $participant['score'],
-                            'team_rank' => $candidateTeamRank,
-                        ];
+                        return $aTeamRank <=> $bTeamRank;
+                    })
+                    ->first();
+
+                if ($rankOne) {
+                    $winner = [
+                        'slot' => $rankOne['slot'],
+                        'team_id' => $rankOne['team_id'],
+                        'name' => $rankOne['name'],
+                        'score' => $rankOne['score'],
+                        'team_rank' => $rankOne['team_id'] ?? (1_000_000 + $rankOne['slot']),
+                    ];
+                } else {
+                    foreach ($participants as $participant) {
+                        $candidateTeamRank = $participant['team_id'] ?? (1_000_000 + $participant['slot']);
+
+                        if (
+                            $winner === null
+                            || $participant['score'] > $winner['score']
+                            || ($participant['score'] === $winner['score'] && $candidateTeamRank < $winner['team_rank'])
+                        ) {
+                            $winner = [
+                                'slot' => $participant['slot'],
+                                'team_id' => $participant['team_id'],
+                                'name' => $participant['name'],
+                                'score' => $participant['score'],
+                                'team_rank' => $candidateTeamRank,
+                            ];
+                        }
                     }
                 }
             }
