@@ -180,7 +180,7 @@ onBeforeUnmount(() => {
                             v-if="participant.icon_url"
                             :src="participant.icon_url"
                             :alt="participant.display_name_snapshot || `Team ${participant.slot}`"
-                            class="mx-auto h-24 w-24 rounded-none border bg-white p-1 object-contain"
+                            class="mx-auto h-24 w-24 rounded-none border object-contain"
                         />
                         <div v-else class="mx-auto flex h-24 w-24 items-center justify-center rounded-none border bg-white text-xs text-gray-500">
                             No Logo
