@@ -28,6 +28,15 @@ const canAccessDisplay = computed(() => {
     return user.value.role === 'admin' && !!user.value.approved_at;
 });
 const homeHref = computed(() => user.value ? route('dashboard') : '/');
+const onlineUsers = computed(() => page.props.presence?.online_users || []);
+const onlineCount = computed(() => page.props.presence?.online_count || 0);
+const formatDateTime = (value) => {
+    if (!value) return '-';
+    if (typeof value === 'string' && value.includes('T')) {
+        return value.slice(0, 19).replace('T', ' ');
+    }
+    return String(value);
+};
 </script>
 
 <template>
@@ -45,6 +54,21 @@ const homeHref = computed(() => user.value ? route('dashboard') : '/');
                     <Link v-if="isSuperAdmin" :href="route('admin.user-approvals.index')" class="rounded border px-2 py-1 text-sm">{{ t('userApprovals') }}</Link>
                 </div>
                 <div class="flex items-center gap-2 text-sm">
+                    <details v-if="isSuperAdmin" class="relative">
+                        <summary class="cursor-pointer rounded border px-2 py-1 list-none">Online: {{ onlineCount }}</summary>
+                        <div class="absolute right-0 z-20 mt-1 w-80 rounded border bg-white p-2 shadow">
+                            <div v-if="onlineUsers.length === 0" class="text-xs text-gray-500">No online users.</div>
+                            <div v-else class="max-h-64 overflow-auto">
+                                <div v-for="onlineUser in onlineUsers" :key="onlineUser.id" class="border-b px-2 py-1 last:border-b-0">
+                                    <div class="text-sm font-medium">{{ onlineUser.name }}</div>
+                                    <div class="text-xs text-gray-600">{{ onlineUser.email }}</div>
+                                    <div class="text-xs text-gray-500">
+                                        {{ onlineUser.role }} • Last seen: {{ formatDateTime(onlineUser.last_seen_at) }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </details>
                     <button class="rounded border px-2 py-1" @click="switchLocale('en')" :disabled="locale === 'en'">EN</button>
                     <button class="rounded border px-2 py-1" @click="switchLocale('zh')" :disabled="locale === 'zh'">中文</button>
                     <template v-if="user">

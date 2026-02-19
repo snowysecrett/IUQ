@@ -15,7 +15,11 @@ class UserApprovalController extends Controller
     public function index(): Response
     {
         return Inertia::render('Admin/Users/Approvals', [
-            'users' => User::query()->where('role', User::ROLE_ADMIN)->orderByDesc('created_at')->get(),
+            'users' => User::query()
+                ->where('role', User::ROLE_ADMIN)
+                ->orderByDesc('last_seen_at')
+                ->orderByDesc('created_at')
+                ->get(),
         ]);
     }
 
