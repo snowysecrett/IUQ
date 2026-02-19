@@ -350,6 +350,37 @@ const sourceNameLabel = (rule) => rule.source_type === 'group'
 const actionLabel = (rule) => rule.action_type === 'eliminate'
     ? 'Eliminate'
     : `Advance to ${rule.target_round?.name || 'Unknown round'} / Slot ${rule.target_slot ?? '-'}`;
+
+const statusDisplayMap = {
+    applied: { label: 'Successful', class: 'border-green-200 bg-green-50 text-green-700' },
+    blocked_manual: { label: 'Blocked (Manual Lock)', class: 'border-amber-200 bg-amber-50 text-amber-700' },
+    skipped: { label: 'Skipped', class: 'border-gray-200 bg-gray-50 text-gray-700' },
+    eliminated: { label: 'Eliminated', class: 'border-red-200 bg-red-50 text-red-700' },
+    stale_marked: { label: 'Marked Stale', class: 'border-orange-200 bg-orange-50 text-orange-700' },
+};
+
+const formatLogTimestamp = (value) => {
+    if (!value) {
+        return '-';
+    }
+
+    // API timestamps are ISO-like; normalize to YYYY-MM-DD HH:mm:ss.
+    if (typeof value === 'string' && value.includes('T')) {
+        return value.slice(0, 19).replace('T', ' ');
+    }
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return String(value);
+    }
+
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+};
+
+const logStatusLabel = (status) => statusDisplayMap[status]?.label || status || '-';
+const logStatusClass = (status) => statusDisplayMap[status]?.class || 'border-gray-200 bg-gray-50 text-gray-700';
+const logTeamChange = (log) => `${log.before_team?.team_name || 'No team'} -> ${log.after_team?.team_name || 'No team'}`;
 </script>
 
 <template>
@@ -834,15 +865,19 @@ const actionLabel = (rule) => rule.action_type === 'eliminate'
                             <th class="border px-2 py-1 text-left">Status</th>
                             <th class="border px-2 py-1 text-left">Source</th>
                             <th class="border px-2 py-1 text-left">Target</th>
-                            <th class="border px-2 py-1 text-left">Before -> After</th>
+                            <th class="border px-2 py-1 text-left">Team Assignment Change</th>
                             <th class="border px-2 py-1 text-left">By</th>
                             <th class="border px-2 py-1 text-left">Message</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr v-for="log in tournament.advancement_logs" :key="log.id">
-                            <td class="border px-2 py-1">{{ log.created_at }}</td>
-                            <td class="border px-2 py-1">{{ log.status }}</td>
+                            <td class="border px-2 py-1">{{ formatLogTimestamp(log.created_at) }}</td>
+                            <td class="border px-2 py-1">
+                                <span class="inline-flex rounded border px-2 py-0.5 text-xs font-medium" :class="logStatusClass(log.status)">
+                                    {{ logStatusLabel(log.status) }}
+                                </span>
+                            </td>
                             <td class="border px-2 py-1">
                                 <span v-if="log.source_type === 'group'">Group: {{ log.source_group?.name || '-' }}</span>
                                 <span v-else-if="log.source_type === 'round'">Round: {{ log.source_round?.name || '-' }}</span>
@@ -853,7 +888,7 @@ const actionLabel = (rule) => rule.action_type === 'eliminate'
                                 <span v-else>-</span>
                             </td>
                             <td class="border px-2 py-1">
-                                {{ log.before_team?.team_name || '-' }} -> {{ log.after_team?.team_name || '-' }}
+                                {{ logTeamChange(log) }}
                             </td>
                             <td class="border px-2 py-1">{{ log.user?.name || '-' }}</td>
                             <td class="border px-2 py-1">{{ log.message || '-' }}</td>
