@@ -32,7 +32,7 @@ class RoundController extends Controller
             'code' => ['nullable', 'string', 'max:64'],
             'round_template_id' => ['nullable', Rule::exists('round_templates', 'id')],
             'group_id' => ['nullable', Rule::exists('groups', 'id')->where('tournament_id', $tournament->id)],
-            'teams_per_round' => ['required', 'integer', 'min:2', 'max:8'],
+            'teams_per_round' => ['nullable', 'integer', 'min:2', 'max:8'],
             'default_score' => ['nullable', 'integer', 'min:0'],
             'scheduled_start_at' => ['nullable', 'date'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
@@ -62,10 +62,14 @@ class RoundController extends Controller
         $defaultScore = array_key_exists('default_score', $data) && $data['default_score'] !== null
             ? (int) $data['default_score']
             : (int) ($template?->default_score ?? 100);
+        $teamsPerRound = array_key_exists('teams_per_round', $data) && $data['teams_per_round'] !== null
+            ? (int) $data['teams_per_round']
+            : (int) ($template?->teams_per_round ?? 3);
         $phaseConfig = $this->resolvePhaseConfig($data, $template, null);
 
         $round = $tournament->rounds()->create([
             ...$data,
+            'teams_per_round' => $teamsPerRound,
             'default_score' => $defaultScore,
             'status' => 'draft',
             'phase' => 'lightning',
@@ -80,7 +84,7 @@ class RoundController extends Controller
             'buzzer_ultimate_score_deltas' => $phaseConfig['buzzer_ultimate_score_deltas'],
         ]);
 
-        for ($slot = 1; $slot <= (int) $data['teams_per_round']; $slot++) {
+        for ($slot = 1; $slot <= $teamsPerRound; $slot++) {
             $round->participants()->create(['slot' => $slot]);
             $round->scores()->create(['slot' => $slot, 'score' => $defaultScore]);
         }

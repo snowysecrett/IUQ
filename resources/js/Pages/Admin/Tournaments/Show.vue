@@ -14,6 +14,7 @@ const props = defineProps({
 const page = usePage();
 const isSuperAdmin = computed(() => page.props.auth?.user?.role === 'super_admin');
 const isUsingRoundTemplate = computed(() => !!roundForm.round_template_id);
+const roundCreateSuccessMessage = ref('');
 
 const isTemplateModalOpen = ref(false);
 
@@ -211,6 +212,7 @@ const deleteGroup = (groupId) => {
 };
 
 const createRound = () => {
+    roundCreateSuccessMessage.value = '';
     roundForm.transform((data) => ({
         ...data,
         round_template_id: data.round_template_id || null,
@@ -234,22 +236,25 @@ const createRound = () => {
                 : null),
         score_deltas: data.round_template_id ? null : parseDeltas(data.buzzer_normal_score_deltas_text),
     })).post(route('admin.rounds.store', props.tournament.id), {
-        onSuccess: () => roundForm.reset(
-            'name',
-            'code',
-            'round_template_id',
-            'group_id',
-            'scheduled_start_at',
-            'sort_order',
-            'default_score',
-            'hide_public_scores',
-            'has_fever',
-            'has_ultimate_fever',
-            'lightning_score_deltas_text',
-            'buzzer_normal_score_deltas_text',
-            'buzzer_fever_score_deltas_text',
-            'buzzer_ultimate_score_deltas_text',
-        ),
+        onSuccess: () => {
+            roundCreateSuccessMessage.value = 'Round created successfully.';
+            roundForm.reset(
+                'name',
+                'code',
+                'round_template_id',
+                'group_id',
+                'scheduled_start_at',
+                'sort_order',
+                'default_score',
+                'hide_public_scores',
+                'has_fever',
+                'has_ultimate_fever',
+                'lightning_score_deltas_text',
+                'buzzer_normal_score_deltas_text',
+                'buzzer_fever_score_deltas_text',
+                'buzzer_ultimate_score_deltas_text',
+            );
+        },
     });
 };
 
@@ -524,6 +529,12 @@ const actionLabel = (rule) => rule.action_type === 'eliminate'
 
             <form @submit.prevent="createRound" class="rounded border bg-white p-4">
                 <h2 class="mb-2 font-semibold">Create Round</h2>
+                <div
+                    v-if="roundCreateSuccessMessage"
+                    class="mb-3 rounded border border-green-300 bg-green-50 px-3 py-2 text-sm text-green-700"
+                >
+                    {{ roundCreateSuccessMessage }}
+                </div>
                 <p class="mb-3 text-sm text-gray-600">
                     Create a specific match/round in this tournament. If you choose a template, keep values aligned with that template.
                 </p>

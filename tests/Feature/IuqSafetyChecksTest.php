@@ -18,6 +18,64 @@ class IuqSafetyChecksTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_round_creation_sets_success_flash_for_manual_and_template_flows(): void
+    {
+        $superAdmin = User::factory()->create([
+            'role' => User::ROLE_SUPER_ADMIN,
+            'approved_at' => now(),
+        ]);
+
+        $tournament = Tournament::query()->create([
+            'name' => 'IUQ Test',
+            'year' => 2030,
+            'status' => 'draft',
+            'timezone' => 'UTC',
+        ]);
+
+        $template = RoundTemplate::query()->create([
+            'tournament_id' => $tournament->id,
+            'name' => 'Default 3 Team',
+            'teams_per_round' => 3,
+            'default_score' => 120,
+            'default_score_deltas' => [20, 10, -10],
+            'default_lightning_score_deltas' => [20],
+            'default_buzzer_normal_score_deltas' => [20, 10, -10],
+            'default_buzzer_fever_score_deltas' => null,
+            'default_buzzer_ultimate_score_deltas' => null,
+            'has_fever' => false,
+            'has_ultimate_fever' => false,
+            'sort_order' => 0,
+        ]);
+
+        $this->actingAs($superAdmin)
+            ->post(route('admin.rounds.store', $tournament), [
+                'name' => 'Manual Round',
+                'teams_per_round' => 3,
+                'default_score' => 100,
+                'has_fever' => false,
+                'has_ultimate_fever' => false,
+                'lightning_score_deltas' => [20],
+                'buzzer_normal_score_deltas' => [20, 10, -10],
+                'buzzer_fever_score_deltas' => null,
+                'buzzer_ultimate_score_deltas' => null,
+                'score_deltas' => [20, 10, -10],
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('success', 'Round created.');
+
+        $this->actingAs($superAdmin)
+            ->post(route('admin.rounds.store', $tournament), [
+                'name' => 'Template Round',
+                'round_template_id' => $template->id,
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('success', 'Round created.');
+
+        $this->assertDatabaseCount('rounds', 2);
+        $this->assertSame(3, Round::query()->where('name', 'Manual Round')->firstOrFail()->participants()->count());
+        $this->assertSame(3, Round::query()->where('name', 'Template Round')->firstOrFail()->participants()->count());
+    }
+
     public function test_clear_resets_scores_to_round_default_score_and_draft_state(): void
     {
         $superAdmin = User::factory()->create([
