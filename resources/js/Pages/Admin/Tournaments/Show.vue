@@ -15,6 +15,7 @@ const page = usePage();
 const isSuperAdmin = computed(() => page.props.auth?.user?.role === 'super_admin');
 const isUsingRoundTemplate = computed(() => !!roundForm.round_template_id);
 const roundCreateSuccessMessage = ref('');
+const roundExpandedState = ref({});
 
 const isTemplateModalOpen = ref(false);
 
@@ -139,6 +140,17 @@ const initRoundUiState = (round) => {
 };
 
 props.tournament.rounds.forEach(initRoundUiState);
+
+props.tournament.rounds.forEach((round) => {
+    if (roundExpandedState.value[round.id] === undefined) {
+        roundExpandedState.value[round.id] = false;
+    }
+});
+
+const isRoundExpanded = (roundId) => !!roundExpandedState.value[roundId];
+const toggleRoundExpanded = (roundId) => {
+    roundExpandedState.value[roundId] = !roundExpandedState.value[roundId];
+};
 
 const updateTournament = () => {
     tournamentForm.patch(route('admin.tournaments.update', props.tournament.id), {
@@ -964,26 +976,33 @@ const logTeamChange = (log) => `${log.before_team?.team_name || 'No team'} -> ${
         <div class="mt-4 space-y-4">
             <div v-for="round in tournament.rounds" :key="round.id" class="rounded border bg-white p-4">
                 <div class="mb-2 flex items-center justify-between">
-                    <h3 class="font-semibold">{{ round.name }}</h3>
-                    <div class="flex items-center gap-1">
-                        <span class="rounded border px-2 py-0.5 text-xs" :class="statusBadgeClass(round.status)">{{ round.status }}</span>
-                        <span class="rounded border border-gray-200 bg-gray-100 px-2 py-0.5 text-xs text-gray-700">{{ round.phase }}</span>
-                        <span
-                            v-if="round.result?.is_stale"
-                            class="rounded border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs text-amber-800"
-                        >
-                            Result Stale
-                        </span>
-                        <span
-                            v-if="round.participants.some((participant) => participant.assignment_mode === 'auto' && participant.assignment_reason === 'override')"
-                            class="rounded border border-blue-300 bg-blue-50 px-2 py-0.5 text-xs text-blue-800"
-                        >
-                            Auto-updated from override
-                        </span>
+                    <button type="button" class="font-semibold hover:underline" @click="toggleRoundExpanded(round.id)">
+                        {{ isRoundExpanded(round.id) ? '▼' : '▶' }} {{ round.name }}
+                    </button>
+                    <div class="flex items-center gap-2">
+                        <div class="flex items-center gap-1">
+                            <span class="rounded border px-2 py-0.5 text-xs" :class="statusBadgeClass(round.status)">{{ round.status }}</span>
+                            <span class="rounded border border-gray-200 bg-gray-100 px-2 py-0.5 text-xs text-gray-700">{{ round.phase }}</span>
+                            <span
+                                v-if="round.result?.is_stale"
+                                class="rounded border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs text-amber-800"
+                            >
+                                Result Stale
+                            </span>
+                            <span
+                                v-if="round.participants.some((participant) => participant.assignment_mode === 'auto' && participant.assignment_reason === 'override')"
+                                class="rounded border border-blue-300 bg-blue-50 px-2 py-0.5 text-xs text-blue-800"
+                            >
+                                Auto-updated from override
+                            </span>
+                        </div>
+                        <div class="text-xs text-gray-500">{{ round.code || 'No code' }}</div>
                     </div>
-                    <div class="text-xs text-gray-500">{{ round.code || 'No code' }}</div>
                 </div>
-                <div v-if="isSuperAdmin" class="mb-3 grid gap-2 md:grid-cols-4">
+                <div v-if="!isRoundExpanded(round.id)" class="text-xs text-gray-500">
+                    Click round title to expand settings and participants.
+                </div>
+                <div v-else-if="isSuperAdmin" class="mb-3 grid gap-2 md:grid-cols-4">
                     <input v-model="round.name" class="rounded border px-2 py-1 text-sm" placeholder="Round name" />
                     <input v-model="round.code" class="rounded border px-2 py-1 text-sm" placeholder="Code" />
                     <select v-model="round.status" class="rounded border px-2 py-1 text-sm">
@@ -1015,7 +1034,7 @@ const logTeamChange = (log) => `${log.before_team?.team_name || 'No team'} -> ${
                         <span class="mr-2">Ultimate</span>
                         <input v-model="round.has_ultimate_fever" type="checkbox" />
                     </label>
-                    <label class="inline-flex items-center justify-between rounded border px-2 py-1 text-sm md:col-span-2">
+                    <label class="inline-flex items-center justify-between rounded border px-2 py-1 text-sm md:col-span-1">
                         <span class="mr-2">Hide Public Scores</span>
                         <input v-model="round.hide_public_scores" type="checkbox" />
                     </label>
@@ -1060,10 +1079,10 @@ const logTeamChange = (log) => `${log.before_team?.team_name || 'No team'} -> ${
                         <button class="rounded border border-red-300 px-3 py-1 text-sm text-red-700" @click="deleteRound(round)">Delete Round</button>
                     </div>
                 </div>
-                <div v-else class="mb-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                <div v-else-if="isRoundExpanded(round.id)" class="mb-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
                     Round details are editable by superadmin only. You can still edit participant slots below.
                 </div>
-                <div class="grid gap-2 md:grid-cols-3">
+                <div v-if="isRoundExpanded(round.id)" class="grid gap-2 md:grid-cols-3">
                     <div v-for="participant in round.participants" :key="participant.id" class="rounded border p-2">
                         <div class="text-xs text-gray-500">Slot {{ participant.slot }}</div>
                         <select v-model="participant.team_id" class="mt-1 w-full rounded border px-2 py-1 text-sm">
@@ -1074,7 +1093,7 @@ const logTeamChange = (log) => `${log.before_team?.team_name || 'No team'} -> ${
                         </select>
                     </div>
                 </div>
-                <button class="mt-3 rounded border px-3 py-1" @click="updateParticipants(round)">Save Participants</button>
+                <button v-if="isRoundExpanded(round.id)" class="mt-3 rounded border px-3 py-1" @click="updateParticipants(round)">Save Participants</button>
             </div>
         </div>
     </MainLayout>
