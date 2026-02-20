@@ -4,6 +4,7 @@ import MainLayout from '@/Layouts/MainLayout.vue';
 import { computed, ref } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 import { statusBadgeClass } from '@/composables/useStatusBadge';
+import { useI18n } from '@/composables/useI18n';
 
 const props = defineProps({
     tournament: Object,
@@ -12,6 +13,7 @@ const props = defineProps({
 });
 
 const page = usePage();
+const { t } = useI18n();
 const isSuperAdmin = computed(() => page.props.auth?.user?.role === 'super_admin');
 const isUsingRoundTemplate = computed(() => !!roundForm.round_template_id);
 const roundCreateSuccessMessage = ref('');
@@ -198,7 +200,7 @@ const createTemplate = () => {
 };
 
 const deleteTemplate = (templateId) => {
-    if (!confirm('Delete this round template?')) {
+    if (!confirm(t('deleteRoundTemplateConfirm'))) {
         return;
     }
 
@@ -214,7 +216,7 @@ const createGroup = () => {
 };
 
 const deleteGroup = (groupId) => {
-    if (!confirm('Delete this group? Rounds in this group will become ungrouped.')) {
+    if (!confirm(t('deleteGroupConfirm'))) {
         return;
     }
 
@@ -249,7 +251,7 @@ const createRound = () => {
         score_deltas: data.round_template_id ? null : parseDeltas(data.buzzer_normal_score_deltas_text),
     })).post(route('admin.rounds.store', props.tournament.id), {
         onSuccess: () => {
-            roundCreateSuccessMessage.value = 'Round created successfully.';
+            roundCreateSuccessMessage.value = t('roundCreatedSuccessfully');
             roundForm.reset(
                 'name',
                 'code',
@@ -308,7 +310,7 @@ const saveRoundDetails = (round) => {
 };
 
 const deleteRound = (round) => {
-    if (!confirm(`Delete round "${round.name}"?`)) {
+    if (!confirm(t('deleteRoundConfirm', { name: round.name }))) {
         return;
     }
 
@@ -346,7 +348,7 @@ const updateAdvancementRule = (rule, payload) => {
 };
 
 const deleteAdvancementRule = (rule) => {
-    if (!confirm('Delete this advancement rule?')) {
+    if (!confirm(t('deleteAdvancementRuleConfirm'))) {
         return;
     }
 
@@ -355,20 +357,20 @@ const deleteAdvancementRule = (rule) => {
     });
 };
 
-const sourceTypeLabel = (rule) => rule.source_type === 'group' ? 'Group' : 'Round';
+const sourceTypeLabel = (rule) => rule.source_type === 'group' ? t('group') : t('round');
 const sourceNameLabel = (rule) => rule.source_type === 'group'
-    ? (rule.source_group?.name || 'Unknown group')
-    : (rule.source_round?.name || 'Unknown round');
+    ? (rule.source_group?.name || t('unknownGroup'))
+    : (rule.source_round?.name || t('unknownRound'));
 const actionLabel = (rule) => rule.action_type === 'eliminate'
-    ? 'Eliminate'
-    : `Advance to ${rule.target_round?.name || 'Unknown round'} / Slot ${rule.target_slot ?? '-'}`;
+    ? t('eliminate')
+    : `${t('advanceTo')} ${rule.target_round?.name || t('unknownRound')} / ${t('slot')} ${rule.target_slot ?? '-'}`;
 
 const statusDisplayMap = {
-    applied: { label: 'Successful', class: 'border-green-200 bg-green-50 text-green-700' },
-    blocked_manual: { label: 'Blocked (Manual Lock)', class: 'border-amber-200 bg-amber-50 text-amber-700' },
-    skipped: { label: 'Skipped', class: 'border-gray-200 bg-gray-50 text-gray-700' },
-    eliminated: { label: 'Eliminated', class: 'border-red-200 bg-red-50 text-red-700' },
-    stale_marked: { label: 'Marked Stale', class: 'border-orange-200 bg-orange-50 text-orange-700' },
+    applied: { label: t('autoAdvanced'), class: 'border-green-200 bg-green-50 text-green-700' },
+    blocked_manual: { label: t('blockedManualLock'), class: 'border-amber-200 bg-amber-50 text-amber-700' },
+    skipped: { label: t('skipped'), class: 'border-gray-200 bg-gray-50 text-gray-700' },
+    eliminated: { label: t('eliminated'), class: 'border-red-200 bg-red-50 text-red-700' },
+    stale_marked: { label: t('markedStale'), class: 'border-orange-200 bg-orange-50 text-orange-700' },
 };
 
 const formatLogTimestamp = (value) => {
@@ -392,7 +394,7 @@ const formatLogTimestamp = (value) => {
 
 const logStatusLabel = (status) => statusDisplayMap[status]?.label || status || '-';
 const logStatusClass = (status) => statusDisplayMap[status]?.class || 'border-gray-200 bg-gray-50 text-gray-700';
-const logTeamChange = (log) => `${log.before_team?.team_name || 'No team'} -> ${log.after_team?.team_name || 'No team'}`;
+const logTeamChange = (log) => `${log.before_team?.team_name || t('noTeam')} -> ${log.after_team?.team_name || t('noTeam')}`;
 </script>
 
 <template>
@@ -400,19 +402,19 @@ const logTeamChange = (log) => `${log.before_team?.team_name || 'No team'} -> ${
     <MainLayout :title="tournament.name">
         <div class="grid gap-4" :class="isSuperAdmin ? 'lg:grid-cols-2' : 'lg:grid-cols-1'">
             <form v-if="isSuperAdmin" @submit.prevent="updateTournament" class="rounded border bg-white p-4">
-                <h2 class="mb-2 font-semibold">Tournament Settings</h2>
+                <h2 class="mb-2 font-semibold">{{ t('tournamentSettings') }}</h2>
                 <fieldset :disabled="!isSuperAdmin">
                     <div class="grid gap-2 md:grid-cols-2">
                         <input v-model="tournamentForm.name" class="rounded border px-2 py-1" />
                         <input v-model="tournamentForm.year" type="number" class="rounded border px-2 py-1" />
                         <select v-model="tournamentForm.status" class="rounded border px-2 py-1">
-                            <option value="draft">draft</option>
-                            <option value="live">live</option>
-                            <option value="completed">completed</option>
+                            <option value="draft">{{ t('statusDraft') }}</option>
+                            <option value="live">{{ t('statusLive') }}</option>
+                            <option value="completed">{{ t('statusCompleted') }}</option>
                         </select>
                         <input v-model="tournamentForm.scheduled_start_at" type="datetime-local" class="rounded border px-2 py-1" />
                         <input v-model="tournamentForm.timezone" class="rounded border px-2 py-1" />
-                        <input v-model="tournamentForm.logo_path" class="rounded border px-2 py-1" placeholder="Logo URL/path" />
+                        <input v-model="tournamentForm.logo_path" class="rounded border px-2 py-1" :placeholder="t('logoUrlPath')" />
                         <input
                             type="file"
                             accept="image/*"
@@ -420,33 +422,33 @@ const logTeamChange = (log) => `${log.before_team?.team_name || 'No team'} -> ${
                             @input="tournamentForm.logo_file = $event.target.files[0]"
                         />
                         <div class="text-xs text-gray-500 md:col-span-2">
-                            Upload file overrides Logo URL/path when both are provided.
+                            {{ t('uploadOverridesLogo') }}
                         </div>
                     </div>
                 </fieldset>
-                <button class="mt-3 rounded border bg-gray-900 px-3 py-1 text-white">Save Tournament</button>
+                <button class="mt-3 rounded border bg-gray-900 px-3 py-1 text-white">{{ t('saveTournament') }}</button>
             </form>
 
             <div class="rounded border bg-white p-4">
-                <h2 class="mb-2 font-semibold">Tournament Teams (max 24)</h2>
+                <h2 class="mb-2 font-semibold">{{ t('tournamentTeamsMax') }}</h2>
                 <form v-if="isSuperAdmin" @submit.prevent="addTeam" class="mb-2 flex gap-2">
                     <select v-model="addTeamForm.team_id" class="min-w-0 flex-1 rounded border px-2 py-1" required>
-                        <option disabled value="">Select team</option>
+                        <option disabled value="">{{ t('selectTeam') }}</option>
                         <option v-for="team in allTeams" :key="team.id" :value="team.id">
                             {{ team.university_name }} - {{ team.team_name }}
                         </option>
                     </select>
-                    <button class="rounded border px-3 py-1">Add</button>
+                    <button class="rounded border px-3 py-1">{{ t('add') }}</button>
                 </form>
                 <div v-else class="mb-2 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                    Adding/removing tournament teams is superadmin only.
+                    {{ t('tournamentTeamsManageSuperadminOnly') }}
                 </div>
                 <div class="max-h-48 overflow-auto rounded border">
                     <table class="min-w-full text-sm">
                         <tr v-for="entry in tournament.tournament_teams" :key="entry.id">
                             <td class="border px-2 py-1">{{ entry.display_name_snapshot }}</td>
                             <td class="border px-2 py-1 text-right">
-                                <button v-if="isSuperAdmin" class="rounded border px-2 py-0.5" @click="removeTeam(entry.team_id)">Remove</button>
+                                <button v-if="isSuperAdmin" class="rounded border px-2 py-0.5" @click="removeTeam(entry.team_id)">{{ t('remove') }}</button>
                             </td>
                         </tr>
                     </table>
@@ -456,85 +458,85 @@ const logTeamChange = (log) => `${log.before_team?.team_name || 'No team'} -> ${
 
         <div v-if="isSuperAdmin" class="mt-4 grid gap-4 lg:grid-cols-2">
             <form @submit.prevent="createGroup" class="rounded border bg-white p-4">
-                <h2 class="mb-2 font-semibold">Groups</h2>
+                <h2 class="mb-2 font-semibold">{{ t('groups') }}</h2>
                 <p class="mb-3 text-sm text-gray-600">
-                    Group rounds within this tournament and maintain cumulative team scores across all rounds in each group.
+                    {{ t('groupsDescription') }}
                 </p>
                 <fieldset :disabled="!isSuperAdmin">
                     <div class="grid gap-3 md:grid-cols-3">
                         <label class="block">
-                            <div class="mb-1 text-sm font-medium text-gray-700">Group Name</div>
-                            <input v-model="groupForm.name" class="w-full rounded border px-2 py-1" placeholder="e.g. Group A" required />
+                            <div class="mb-1 text-sm font-medium text-gray-700">{{ t('groupName') }}</div>
+                            <input v-model="groupForm.name" class="w-full rounded border px-2 py-1" :placeholder="t('exampleGroupA')" required />
                         </label>
                         <label class="block">
-                            <div class="mb-1 text-sm font-medium text-gray-700">Group Code (optional)</div>
-                            <input v-model="groupForm.code" class="w-full rounded border px-2 py-1" placeholder="e.g. GA" />
+                            <div class="mb-1 text-sm font-medium text-gray-700">{{ t('groupCodeOptional') }}</div>
+                            <input v-model="groupForm.code" class="w-full rounded border px-2 py-1" :placeholder="t('exampleGA')" />
                         </label>
                         <label class="block">
-                            <div class="mb-1 text-sm font-medium text-gray-700">Display Order</div>
+                            <div class="mb-1 text-sm font-medium text-gray-700">{{ t('displayOrder') }}</div>
                             <input v-model="groupForm.sort_order" type="number" class="w-full rounded border px-2 py-1" />
                         </label>
                     </div>
                 </fieldset>
-                <button class="mt-3 rounded border bg-gray-900 px-3 py-1 text-white">Create Group</button>
+                <button class="mt-3 rounded border bg-gray-900 px-3 py-1 text-white">{{ t('createGroup') }}</button>
             </form>
 
             <form @submit.prevent="createTemplate" class="rounded border bg-white p-4">
                 <div class="mb-2 flex items-center justify-between gap-2">
-                    <h2 class="font-semibold">Round Template Editor</h2>
+                    <h2 class="font-semibold">{{ t('roundTemplateEditor') }}</h2>
                     <button
                         type="button"
                         class="rounded border px-3 py-1 text-sm"
                         @click="isTemplateModalOpen = true"
                     >
-                        View Created Templates ({{ tournament.round_templates.length }})
+                        {{ t('viewCreatedTemplates') }} ({{ tournament.round_templates.length }})
                     </button>
                 </div>
                 <p class="mb-3 text-sm text-gray-600">
-                    A template is a reusable setup for rounds. Example: teams per round = <strong>3</strong>, score buttons =
-                    <strong>lightning: 20, buzzer normal: 20,10,-10</strong>.
+                    {{ t('templateDescriptionPrefix') }} <strong>3</strong>, {{ t('templateDescriptionSuffix') }}
+                    <strong>{{ t('lightningRound').toLowerCase() }}: 20, {{ t('buzzerNormalRound').toLowerCase() }}: 20,10,-10</strong>.
                 </p>
                 <fieldset :disabled="!isSuperAdmin">
                     <div class="grid gap-3 md:grid-cols-2">
                     <label class="block">
-                        <div class="mb-1 text-sm font-medium text-gray-700">Template Name</div>
-                        <input v-model="templateForm.name" class="w-full rounded border px-2 py-1" placeholder="e.g. Prelim Group Match" required />
+                        <div class="mb-1 text-sm font-medium text-gray-700">{{ t('templateName') }}</div>
+                        <input v-model="templateForm.name" class="w-full rounded border px-2 py-1" :placeholder="t('examplePrelimGroupMatch')" required />
                     </label>
                     <label class="block">
-                        <div class="mb-1 text-sm font-medium text-gray-700">Template Code (optional)</div>
-                        <input v-model="templateForm.code" class="w-full rounded border px-2 py-1" placeholder="e.g. PRELIM_3T" />
+                        <div class="mb-1 text-sm font-medium text-gray-700">{{ t('templateCodeOptional') }}</div>
+                        <input v-model="templateForm.code" class="w-full rounded border px-2 py-1" :placeholder="t('examplePrelim3t')" />
                     </label>
                     <label class="block">
-                        <div class="mb-1 text-sm font-medium text-gray-700">Teams Per Round</div>
+                        <div class="mb-1 text-sm font-medium text-gray-700">{{ t('teamsPerRound') }}</div>
                         <input v-model="templateForm.teams_per_round" type="number" min="2" max="8" class="w-full rounded border px-2 py-1" />
-                        <div class="mt-1 text-xs text-gray-500">Default is 3. This controls how many participant slots each round gets.</div>
+                        <div class="mt-1 text-xs text-gray-500">{{ t('teamsPerRoundHint') }}</div>
                     </label>
                     <label class="block">
-                        <div class="mb-1 text-sm font-medium text-gray-700">Default Score</div>
+                        <div class="mb-1 text-sm font-medium text-gray-700">{{ t('defaultScore') }}</div>
                         <input v-model="templateForm.default_score" type="number" min="0" class="w-full rounded border px-2 py-1" />
-                        <div class="mt-1 text-xs text-gray-500">Default is 100 if left empty.</div>
+                        <div class="mt-1 text-xs text-gray-500">{{ t('defaultScoreHint') }}</div>
                     </label>
                     <label class="block">
-                        <div class="mb-1 text-sm font-medium text-gray-700">Display Order</div>
+                        <div class="mb-1 text-sm font-medium text-gray-700">{{ t('displayOrder') }}</div>
                         <input v-model="templateForm.sort_order" type="number" class="w-full rounded border px-2 py-1" />
-                        <div class="mt-1 text-xs text-gray-500">Default is 0. Smaller numbers appear earlier in lists.</div>
+                        <div class="mt-1 text-xs text-gray-500">{{ t('displayOrderHint') }}</div>
                     </label>
                     <label class="block md:col-span-2">
-                        <div class="mb-1 text-sm font-medium text-gray-700">Buzzer Modes</div>
+                        <div class="mb-1 text-sm font-medium text-gray-700">{{ t('buzzerModes') }}</div>
                         <div class="flex flex-wrap gap-4 rounded border px-3 py-2 text-sm">
                             <label class="inline-flex items-center gap-2">
                                 <input v-model="templateForm.has_fever" type="checkbox" />
-                                <span>Enable Fever</span>
+                                <span>{{ t('enableFever') }}</span>
                             </label>
                             <label class="inline-flex items-center gap-2">
                                 <input v-model="templateForm.has_ultimate_fever" type="checkbox" />
-                                <span>Enable Ultimate Fever</span>
+                                <span>{{ t('enableUltimateFever') }}</span>
                             </label>
                         </div>
-                        <div class="mt-1 text-xs text-gray-500">Ultimate Fever implies Fever.</div>
+                        <div class="mt-1 text-xs text-gray-500">{{ t('ultimateImpliesFever') }}</div>
                     </label>
                     <label class="block md:col-span-2">
-                        <div class="mb-1 text-sm font-medium text-gray-700">Lightning Score Deltas</div>
+                        <div class="mb-1 text-sm font-medium text-gray-700">{{ t('lightningScoreDeltas') }}</div>
                         <input
                             v-model="templateForm.default_lightning_score_deltas_text"
                             class="w-full rounded border px-2 py-1"
@@ -542,7 +544,7 @@ const logTeamChange = (log) => `${log.before_team?.team_name || 'No team'} -> ${
                         />
                     </label>
                     <label class="block md:col-span-2">
-                        <div class="mb-1 text-sm font-medium text-gray-700">Buzzer (Normal) Score Deltas</div>
+                        <div class="mb-1 text-sm font-medium text-gray-700">{{ t('buzzerNormalScoreDeltas') }}</div>
                         <input
                             v-model="templateForm.default_buzzer_normal_score_deltas_text"
                             class="w-full rounded border px-2 py-1"
@@ -550,7 +552,7 @@ const logTeamChange = (log) => `${log.before_team?.team_name || 'No team'} -> ${
                         />
                     </label>
                     <label v-if="templateForm.has_fever || templateForm.has_ultimate_fever" class="block md:col-span-2">
-                        <div class="mb-1 text-sm font-medium text-gray-700">Buzzer (Fever) Score Deltas</div>
+                        <div class="mb-1 text-sm font-medium text-gray-700">{{ t('buzzerFeverScoreDeltas') }}</div>
                         <input
                             v-model="templateForm.default_buzzer_fever_score_deltas_text"
                             class="w-full rounded border px-2 py-1"
@@ -558,7 +560,7 @@ const logTeamChange = (log) => `${log.before_team?.team_name || 'No team'} -> ${
                         />
                     </label>
                     <label v-if="templateForm.has_ultimate_fever" class="block md:col-span-2">
-                        <div class="mb-1 text-sm font-medium text-gray-700">Buzzer (Ultimate Fever) Score Deltas</div>
+                        <div class="mb-1 text-sm font-medium text-gray-700">{{ t('buzzerUltimateScoreDeltas') }}</div>
                         <input
                             v-model="templateForm.default_buzzer_ultimate_score_deltas_text"
                             class="w-full rounded border px-2 py-1"
@@ -567,11 +569,11 @@ const logTeamChange = (log) => `${log.before_team?.team_name || 'No team'} -> ${
                     </label>
                     </div>
                 </fieldset>
-                <button class="mt-3 rounded border bg-gray-900 px-3 py-1 text-white">Create Template</button>
+                <button class="mt-3 rounded border bg-gray-900 px-3 py-1 text-white">{{ t('createTemplate') }}</button>
             </form>
 
             <form @submit.prevent="createRound" class="rounded border bg-white p-4">
-                <h2 class="mb-2 font-semibold">Create Round</h2>
+                <h2 class="mb-2 font-semibold">{{ t('createRound') }}</h2>
                 <div
                     v-if="roundCreateSuccessMessage"
                     class="mb-3 rounded border border-green-300 bg-green-50 px-3 py-2 text-sm text-green-700"
@@ -579,83 +581,83 @@ const logTeamChange = (log) => `${log.before_team?.team_name || 'No team'} -> ${
                     {{ roundCreateSuccessMessage }}
                 </div>
                 <p class="mb-3 text-sm text-gray-600">
-                    Create a specific match/round in this tournament. If you choose a template, keep values aligned with that template.
+                    {{ t('createRoundDescription') }}
                 </p>
                 <fieldset :disabled="!isSuperAdmin">
                     <div class="grid gap-3 md:grid-cols-2">
                     <label class="block">
-                        <div class="mb-1 text-sm font-medium text-gray-700">Round Name</div>
-                        <input v-model="roundForm.name" class="w-full rounded border px-2 py-1" placeholder="e.g. PrelimA1" required />
+                        <div class="mb-1 text-sm font-medium text-gray-700">{{ t('roundName') }}</div>
+                        <input v-model="roundForm.name" class="w-full rounded border px-2 py-1" :placeholder="t('examplePrelimA1')" required />
                     </label>
                     <label class="block">
-                        <div class="mb-1 text-sm font-medium text-gray-700">Round Code (optional)</div>
-                        <input v-model="roundForm.code" class="w-full rounded border px-2 py-1" placeholder="e.g. PA1" />
+                        <div class="mb-1 text-sm font-medium text-gray-700">{{ t('roundCodeOptional') }}</div>
+                        <input v-model="roundForm.code" class="w-full rounded border px-2 py-1" :placeholder="t('examplePA1')" />
                     </label>
                     <label class="block">
-                        <div class="mb-1 text-sm font-medium text-gray-700">Use Template (optional)</div>
+                        <div class="mb-1 text-sm font-medium text-gray-700">{{ t('useTemplateOptional') }}</div>
                         <select v-model="roundForm.round_template_id" class="w-full rounded border px-2 py-1">
-                            <option value="">No template</option>
+                            <option value="">{{ t('noTemplate') }}</option>
                             <option v-for="template in tournament.round_templates" :key="template.id" :value="template.id">
                                 {{ template.name }}
                             </option>
                         </select>
                     </label>
                     <label class="block">
-                        <div class="mb-1 text-sm font-medium text-gray-700">Group (optional)</div>
+                        <div class="mb-1 text-sm font-medium text-gray-700">{{ t('groupOptional') }}</div>
                         <select v-model="roundForm.group_id" class="w-full min-w-56 rounded border px-2 py-1">
-                            <option value="">No group</option>
+                            <option value="">{{ t('noGroup') }}</option>
                             <option v-for="group in tournament.groups" :key="group.id" :value="group.id">
                                 {{ group.name }}
                             </option>
                         </select>
                     </label>
                     <label v-if="!isUsingRoundTemplate" class="block">
-                        <div class="mb-1 text-sm font-medium text-gray-700">Teams Per Round</div>
+                        <div class="mb-1 text-sm font-medium text-gray-700">{{ t('teamsPerRound') }}</div>
                         <input v-model="roundForm.teams_per_round" type="number" min="2" max="8" class="w-full rounded border px-2 py-1" />
-                        <div class="mt-1 text-xs text-gray-500">Default is 3 participant slots for this round.</div>
+                        <div class="mt-1 text-xs text-gray-500">{{ t('defaultTeamsPerRoundHint') }}</div>
                     </label>
                     <label v-if="!isUsingRoundTemplate" class="block">
-                        <div class="mb-1 text-sm font-medium text-gray-700">Default Score</div>
+                        <div class="mb-1 text-sm font-medium text-gray-700">{{ t('defaultScore') }}</div>
                         <input v-model="roundForm.default_score" type="number" min="0" class="w-full rounded border px-2 py-1" />
-                        <div class="mt-1 text-xs text-gray-500">Defaults to 100 if left empty.</div>
+                        <div class="mt-1 text-xs text-gray-500">{{ t('defaultRoundScoreHint') }}</div>
                     </label>
                     <label class="block">
-                        <div class="mb-1 text-sm font-medium text-gray-700">Scheduled Start Time</div>
+                        <div class="mb-1 text-sm font-medium text-gray-700">{{ t('scheduledStartTime') }}</div>
                         <input v-model="roundForm.scheduled_start_at" type="datetime-local" class="w-full rounded border px-2 py-1" />
                     </label>
                     <label class="block">
-                        <div class="mb-1 text-sm font-medium text-gray-700">Display Order</div>
+                        <div class="mb-1 text-sm font-medium text-gray-700">{{ t('displayOrder') }}</div>
                         <input v-model="roundForm.sort_order" type="number" class="w-full rounded border px-2 py-1" />
-                        <div class="mt-1 text-xs text-gray-500">Default is 0. Smaller numbers appear earlier in round lists.</div>
+                        <div class="mt-1 text-xs text-gray-500">{{ t('displayOrderRoundHint') }}</div>
                     </label>
                     <div v-if="isUsingRoundTemplate" class="rounded border bg-gray-50 px-3 py-2 text-sm text-gray-600 md:col-span-2">
-                        Template-selected mode: teams per round, score deltas, and fever settings come from the chosen template.
+                        {{ t('templateSelectedModeHint') }}
                     </div>
                     <label v-if="!isUsingRoundTemplate" class="block md:col-span-2">
-                        <div class="mb-1 text-sm font-medium text-gray-700">Buzzer Modes</div>
+                        <div class="mb-1 text-sm font-medium text-gray-700">{{ t('buzzerModes') }}</div>
                         <div class="flex flex-wrap gap-4 rounded border px-3 py-2 text-sm">
                             <label class="inline-flex items-center gap-2">
                                 <input v-model="roundForm.has_fever" type="checkbox" />
-                                <span>Enable Fever</span>
+                                <span>{{ t('enableFever') }}</span>
                             </label>
                             <label class="inline-flex items-center gap-2">
                                 <input v-model="roundForm.has_ultimate_fever" type="checkbox" />
-                                <span>Enable Ultimate Fever</span>
+                                <span>{{ t('enableUltimateFever') }}</span>
                             </label>
                         </div>
-                        <div class="mt-1 text-xs text-gray-500">Ultimate Fever implies Fever.</div>
+                        <div class="mt-1 text-xs text-gray-500">{{ t('ultimateImpliesFever') }}</div>
                     </label>
                     <label class="block md:col-span-2">
-                        <div class="mb-1 text-sm font-medium text-gray-700">Public Score Visibility</div>
+                        <div class="mb-1 text-sm font-medium text-gray-700">{{ t('publicScoreVisibility') }}</div>
                         <div class="flex flex-wrap gap-4 rounded border px-3 py-2 text-sm">
                             <label class="inline-flex items-center gap-2">
                                 <input v-model="roundForm.hide_public_scores" type="checkbox" />
-                                <span>Hide scores on Timetable/Display (show ???)</span>
+                                <span>{{ t('hideScoresOnPublic') }}</span>
                             </label>
                         </div>
                     </label>
                     <label v-if="!isUsingRoundTemplate" class="block md:col-span-2">
-                        <div class="mb-1 text-sm font-medium text-gray-700">Lightning Score Deltas</div>
+                        <div class="mb-1 text-sm font-medium text-gray-700">{{ t('lightningScoreDeltas') }}</div>
                         <input
                             v-model="roundForm.lightning_score_deltas_text"
                             class="w-full rounded border px-2 py-1"
@@ -663,7 +665,7 @@ const logTeamChange = (log) => `${log.before_team?.team_name || 'No team'} -> ${
                         />
                     </label>
                     <label v-if="!isUsingRoundTemplate" class="block md:col-span-2">
-                        <div class="mb-1 text-sm font-medium text-gray-700">Buzzer (Normal) Score Deltas</div>
+                        <div class="mb-1 text-sm font-medium text-gray-700">{{ t('buzzerNormalScoreDeltas') }}</div>
                         <input
                             v-model="roundForm.buzzer_normal_score_deltas_text"
                             class="w-full rounded border px-2 py-1"
@@ -671,7 +673,7 @@ const logTeamChange = (log) => `${log.before_team?.team_name || 'No team'} -> ${
                         />
                     </label>
                     <label v-if="!isUsingRoundTemplate && (roundForm.has_fever || roundForm.has_ultimate_fever)" class="block md:col-span-2">
-                        <div class="mb-1 text-sm font-medium text-gray-700">Buzzer (Fever) Score Deltas</div>
+                        <div class="mb-1 text-sm font-medium text-gray-700">{{ t('buzzerFeverScoreDeltas') }}</div>
                         <input
                             v-model="roundForm.buzzer_fever_score_deltas_text"
                             class="w-full rounded border px-2 py-1"
@@ -679,7 +681,7 @@ const logTeamChange = (log) => `${log.before_team?.team_name || 'No team'} -> ${
                         />
                     </label>
                     <label v-if="!isUsingRoundTemplate && roundForm.has_ultimate_fever" class="block md:col-span-2">
-                        <div class="mb-1 text-sm font-medium text-gray-700">Buzzer (Ultimate Fever) Score Deltas</div>
+                        <div class="mb-1 text-sm font-medium text-gray-700">{{ t('buzzerUltimateScoreDeltas') }}</div>
                         <input
                             v-model="roundForm.buzzer_ultimate_score_deltas_text"
                             class="w-full rounded border px-2 py-1"
@@ -688,38 +690,38 @@ const logTeamChange = (log) => `${log.before_team?.team_name || 'No team'} -> ${
                     </label>
                     </div>
                 </fieldset>
-                <button class="mt-3 rounded border bg-gray-900 px-3 py-1 text-white">Create Round</button>
+                <button class="mt-3 rounded border bg-gray-900 px-3 py-1 text-white">{{ t('createRound') }}</button>
             </form>
         </div>
 
         <div class="mt-4 rounded border bg-white p-4">
-            <h2 class="mb-3 font-semibold">Group Standings</h2>
+            <h2 class="mb-3 font-semibold">{{ t('groupStandings') }}</h2>
             <div v-if="groupSummaries.length === 0" class="rounded border bg-gray-50 p-3 text-sm text-gray-600">
-                No groups created yet.
+                {{ t('noGroupsCreatedYet') }}
             </div>
             <div v-else class="space-y-4">
                 <div v-for="summary in groupSummaries" :key="summary.id" class="rounded border">
                     <div class="flex items-center justify-between border-b bg-gray-50 px-3 py-2">
                         <div>
                             <div class="font-semibold">{{ summary.name }}</div>
-                            <div class="text-xs text-gray-500">Rounds in group: {{ summary.round_count }}</div>
+                            <div class="text-xs text-gray-500">{{ t('roundsInGroup') }}: {{ summary.round_count }}</div>
                         </div>
                         <button
                             v-if="isSuperAdmin"
                             class="rounded border border-red-300 px-2 py-1 text-sm text-red-700"
                             @click="deleteGroup(summary.id)"
                         >
-                            Delete Group
+                            {{ t('deleteGroup') }}
                         </button>
                     </div>
-                    <div v-if="summary.standings.length === 0" class="p-3 text-sm text-gray-600">No team scores yet.</div>
+                    <div v-if="summary.standings.length === 0" class="p-3 text-sm text-gray-600">{{ t('noTeamScoresYet') }}</div>
                     <div v-else class="overflow-auto">
                         <table class="min-w-full text-sm">
                             <thead class="bg-gray-50">
                                 <tr>
-                                    <th class="border px-2 py-1 text-left">Rank</th>
-                                    <th class="border px-2 py-1 text-left">Team</th>
-                                    <th class="border px-2 py-1 text-left">Total Score</th>
+                                    <th class="border px-2 py-1 text-left">{{ t('rank') }}</th>
+                                    <th class="border px-2 py-1 text-left">{{ t('team') }}</th>
+                                    <th class="border px-2 py-1 text-left">{{ t('totalScore') }}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -737,86 +739,86 @@ const logTeamChange = (log) => `${log.before_team?.team_name || 'No team'} -> ${
 
         <div class="mt-4 grid gap-4" :class="isSuperAdmin ? 'lg:grid-cols-2' : 'lg:grid-cols-1'">
             <form v-if="isSuperAdmin" @submit.prevent="createAdvancementRule" class="rounded border bg-white p-4">
-                <h2 class="mb-2 font-semibold">Advancement Rules</h2>
+                <h2 class="mb-2 font-semibold">{{ t('advancementRules') }}</h2>
                 <p class="mb-3 text-sm text-gray-600">
-                    Configure auto-advancement from either a completed round ranking or a completed group ranking.
+                    {{ t('advancementRulesDescription') }}
                 </p>
                 <fieldset :disabled="!isSuperAdmin">
                     <div class="grid gap-3 md:grid-cols-2">
                         <label class="block">
-                            <div class="mb-1 text-sm font-medium text-gray-700">Source Type</div>
+                            <div class="mb-1 text-sm font-medium text-gray-700">{{ t('sourceType') }}</div>
                             <select v-model="ruleForm.source_type" class="w-full rounded border px-2 py-1">
-                                <option value="group">Group-based</option>
-                                <option value="round">Round-based</option>
+                                <option value="group">{{ t('groupBased') }}</option>
+                                <option value="round">{{ t('roundBased') }}</option>
                             </select>
                         </label>
                         <label v-if="ruleForm.source_type === 'group'" class="block">
-                            <div class="mb-1 text-sm font-medium text-gray-700">Source Group</div>
+                            <div class="mb-1 text-sm font-medium text-gray-700">{{ t('sourceGroup') }}</div>
                             <select v-model="ruleForm.source_group_id" class="w-full rounded border px-2 py-1" required>
-                                <option disabled value="">Select group</option>
+                                <option disabled value="">{{ t('selectGroup') }}</option>
                                 <option v-for="group in tournament.groups" :key="group.id" :value="group.id">
                                     {{ group.name }}
                                 </option>
                             </select>
                         </label>
                         <label v-else class="block">
-                            <div class="mb-1 text-sm font-medium text-gray-700">Source Round</div>
+                            <div class="mb-1 text-sm font-medium text-gray-700">{{ t('sourceRound') }}</div>
                             <select v-model="ruleForm.source_round_id" class="w-full rounded border px-2 py-1" required>
-                                <option disabled value="">Select round</option>
+                                <option disabled value="">{{ t('selectRound') }}</option>
                                 <option v-for="round in tournament.rounds" :key="round.id" :value="round.id">
                                     {{ round.name }}
                                 </option>
                             </select>
                         </label>
                         <label class="block">
-                            <div class="mb-1 text-sm font-medium text-gray-700">Source Rank</div>
+                            <div class="mb-1 text-sm font-medium text-gray-700">{{ t('sourceRank') }}</div>
                             <input v-model="ruleForm.source_rank" type="number" min="1" class="w-full rounded border px-2 py-1" />
                         </label>
                         <label class="block">
-                            <div class="mb-1 text-sm font-medium text-gray-700">Action</div>
+                            <div class="mb-1 text-sm font-medium text-gray-700">{{ t('action') }}</div>
                             <select v-model="ruleForm.action_type" class="w-full rounded border px-2 py-1">
-                                <option value="advance">Advance to another round slot</option>
-                                <option value="eliminate">Eliminate</option>
+                                <option value="advance">{{ t('advanceToAnotherRoundSlot') }}</option>
+                                <option value="eliminate">{{ t('eliminate') }}</option>
                             </select>
                         </label>
                         <label class="block" v-if="ruleForm.action_type === 'advance'">
-                            <div class="mb-1 text-sm font-medium text-gray-700">Target Round</div>
+                            <div class="mb-1 text-sm font-medium text-gray-700">{{ t('targetRound') }}</div>
                             <select v-model="ruleForm.target_round_id" class="w-full rounded border px-2 py-1" required>
-                                <option disabled value="">Select target round</option>
+                                <option disabled value="">{{ t('selectTargetRound') }}</option>
                                 <option v-for="round in tournament.rounds" :key="`target-${round.id}`" :value="round.id">
                                     {{ round.name }}
                                 </option>
                             </select>
                         </label>
                         <label class="block" v-if="ruleForm.action_type === 'advance'">
-                            <div class="mb-1 text-sm font-medium text-gray-700">Target Slot</div>
+                            <div class="mb-1 text-sm font-medium text-gray-700">{{ t('targetSlot') }}</div>
                             <input v-model="ruleForm.target_slot" type="number" min="1" class="w-full rounded border px-2 py-1" />
                         </label>
                         <label class="block">
-                            <div class="mb-1 text-sm font-medium text-gray-700">Priority</div>
+                            <div class="mb-1 text-sm font-medium text-gray-700">{{ t('priority') }}</div>
                             <input v-model="ruleForm.priority" type="number" min="0" class="w-full rounded border px-2 py-1" />
-                            <div class="mt-1 text-xs text-gray-500">Lower number means earlier processing.</div>
+                            <div class="mt-1 text-xs text-gray-500">{{ t('priorityHint') }}</div>
                         </label>
                     </div>
                 </fieldset>
-                <button class="mt-3 rounded border bg-gray-900 px-3 py-1 text-white">Create Rule</button>
+                <button class="mt-3 rounded border bg-gray-900 px-3 py-1 text-white">{{ t('createRule') }}</button>
             </form>
 
             <div class="rounded border bg-white p-4">
-                <h2 class="mb-2 font-semibold">Current Rules</h2>
+                <h2 class="mb-2 font-semibold">{{ t('currentRules') }}</h2>
                 <div v-if="tournament.advancement_rules.length === 0" class="rounded border bg-gray-50 p-3 text-sm text-gray-600">
-                    No advancement rules created yet.
+                    {{ t('noAdvancementRulesYet') }}
                 </div>
                 <div v-else class="overflow-auto rounded border">
                     <table class="min-w-full text-sm">
                         <thead class="bg-gray-50">
                             <tr>
-                                <th class="border px-2 py-1 text-left">Source</th>
-                                <th class="border px-2 py-1 text-left">Rank</th>
-                                <th class="border px-2 py-1 text-left">Action</th>
-                                <th class="border px-2 py-1 text-left">Priority</th>
-                                <th class="border px-2 py-1 text-left">Active</th>
-                                <th v-if="isSuperAdmin" class="border px-2 py-1 text-left">Actions</th>
+                                <th class="border px-2 py-1 text-left">{{ t('source') }}</th>
+                                <th class="border px-2 py-1 text-left">{{ t('rank') }}</th>
+                                <th class="border px-2 py-1 text-left">{{ t('action') }}</th>
+                                <th class="border px-2 py-1 text-left">{{ t('priority') }}</th>
+                                <th class="border px-2 py-1 text-left">{{ t('active') }}</th>
+                                <th v-if="isSuperAdmin" class="border px-2 py-1 text-left">{{ t('actions') }}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -842,16 +844,16 @@ const logTeamChange = (log) => `${log.before_team?.team_name || 'No team'} -> ${
                                             :checked="rule.is_active"
                                             @change="updateAdvancementRule(rule, { is_active: $event.target.checked })"
                                         />
-                                        <span>{{ rule.is_active ? 'Yes' : 'No' }}</span>
+                                        <span>{{ rule.is_active ? t('yes') : t('no') }}</span>
                                     </label>
-                                    <span v-else>{{ rule.is_active ? 'Yes' : 'No' }}</span>
+                                    <span v-else>{{ rule.is_active ? t('yes') : t('no') }}</span>
                                 </td>
                                 <td v-if="isSuperAdmin" class="border px-2 py-1">
                                     <button
                                         class="rounded border border-red-300 px-2 py-1 text-red-700"
                                         @click="deleteAdvancementRule(rule)"
                                     >
-                                        Delete
+                                        {{ t('delete') }}
                                     </button>
                                 </td>
                             </tr>
@@ -862,24 +864,24 @@ const logTeamChange = (log) => `${log.before_team?.team_name || 'No team'} -> ${
         </div>
 
         <div class="mt-4 rounded border bg-white p-4">
-            <h2 class="mb-2 font-semibold">Advancement Log</h2>
+            <h2 class="mb-2 font-semibold">{{ t('advancementLog') }}</h2>
             <p class="mb-3 text-sm text-gray-600">
-                Tracks auto-advancement decisions, manual-lock blocks, eliminated outcomes, and stale-result marks.
+                {{ t('advancementLogDescription') }}
             </p>
             <div v-if="tournament.advancement_logs.length === 0" class="rounded border bg-gray-50 p-3 text-sm text-gray-600">
-                No log entries yet.
+                {{ t('noLogEntriesYet') }}
             </div>
             <div v-else class="overflow-auto rounded border">
                 <table class="min-w-full text-sm">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th class="border px-2 py-1 text-left">Time</th>
-                            <th class="border px-2 py-1 text-left">Status</th>
-                            <th class="border px-2 py-1 text-left">Source</th>
-                            <th class="border px-2 py-1 text-left">Target</th>
-                            <th class="border px-2 py-1 text-left">Team Assignment Change</th>
-                            <th class="border px-2 py-1 text-left">By</th>
-                            <th class="border px-2 py-1 text-left">Message</th>
+                            <th class="border px-2 py-1 text-left">{{ t('time') }}</th>
+                            <th class="border px-2 py-1 text-left">{{ t('roundStatus') }}</th>
+                            <th class="border px-2 py-1 text-left">{{ t('source') }}</th>
+                            <th class="border px-2 py-1 text-left">{{ t('target') }}</th>
+                            <th class="border px-2 py-1 text-left">{{ t('teamAssignmentChange') }}</th>
+                            <th class="border px-2 py-1 text-left">{{ t('by') }}</th>
+                            <th class="border px-2 py-1 text-left">{{ t('message') }}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -891,12 +893,12 @@ const logTeamChange = (log) => `${log.before_team?.team_name || 'No team'} -> ${
                                 </span>
                             </td>
                             <td class="border px-2 py-1">
-                                <span v-if="log.source_type === 'group'">Group: {{ log.source_group?.name || '-' }}</span>
-                                <span v-else-if="log.source_type === 'round'">Round: {{ log.source_round?.name || '-' }}</span>
-                                <span v-else>System</span>
+                                <span v-if="log.source_type === 'group'">{{ t('group') }}: {{ log.source_group?.name || '-' }}</span>
+                                <span v-else-if="log.source_type === 'round'">{{ t('round') }}: {{ log.source_round?.name || '-' }}</span>
+                                <span v-else>{{ t('system') }}</span>
                             </td>
                             <td class="border px-2 py-1">
-                                <span v-if="log.target_round">Round: {{ log.target_round.name }} / Slot {{ log.target_slot ?? '-' }}</span>
+                                <span v-if="log.target_round">{{ t('round') }}: {{ log.target_round.name }} / {{ t('slot') }} {{ log.target_slot ?? '-' }}</span>
                                 <span v-else>-</span>
                             </td>
                             <td class="border px-2 py-1">
@@ -916,29 +918,29 @@ const logTeamChange = (log) => `${log.before_team?.team_name || 'No team'} -> ${
         >
             <div class="max-h-[80vh] w-full max-w-5xl overflow-auto rounded border bg-white p-4">
                 <div class="mb-3 flex items-center justify-between">
-                    <h3 class="text-lg font-semibold">Round Templates for {{ tournament.name }}</h3>
-                    <button class="rounded border px-3 py-1" @click="isTemplateModalOpen = false">Close</button>
+                    <h3 class="text-lg font-semibold">{{ t('roundTemplatesFor') }} {{ tournament.name }}</h3>
+                    <button class="rounded border px-3 py-1" @click="isTemplateModalOpen = false">{{ t('close') }}</button>
                 </div>
 
                 <div v-if="tournament.round_templates.length === 0" class="rounded border bg-gray-50 p-3 text-sm text-gray-600">
-                    No templates created yet.
+                    {{ t('noTemplatesCreatedYet') }}
                 </div>
 
                 <div v-else class="overflow-auto rounded border">
                     <table class="min-w-full text-sm">
                         <thead class="bg-gray-50">
                             <tr>
-                                <th class="border px-2 py-1 text-left">Name</th>
-                                <th class="border px-2 py-1 text-left">Code</th>
-                                <th class="border px-2 py-1 text-left">Teams / Round</th>
-                                <th class="border px-2 py-1 text-left">Default Score</th>
-                                <th class="border px-2 py-1 text-left">Display Order</th>
-                                <th class="border px-2 py-1 text-left">Modes</th>
-                                <th class="border px-2 py-1 text-left">Lightning Deltas</th>
-                                <th class="border px-2 py-1 text-left">Normal Deltas</th>
-                                <th class="border px-2 py-1 text-left">Fever Deltas</th>
-                                <th class="border px-2 py-1 text-left">Ultimate Fever Deltas</th>
-                                <th class="border px-2 py-1 text-left">Actions</th>
+                                <th class="border px-2 py-1 text-left">{{ t('name') }}</th>
+                                <th class="border px-2 py-1 text-left">{{ t('code') }}</th>
+                                <th class="border px-2 py-1 text-left">{{ t('teamsPerRound') }}</th>
+                                <th class="border px-2 py-1 text-left">{{ t('defaultScore') }}</th>
+                                <th class="border px-2 py-1 text-left">{{ t('displayOrder') }}</th>
+                                <th class="border px-2 py-1 text-left">{{ t('modes') }}</th>
+                                <th class="border px-2 py-1 text-left">{{ t('lightningDeltas') }}</th>
+                                <th class="border px-2 py-1 text-left">{{ t('normalDeltas') }}</th>
+                                <th class="border px-2 py-1 text-left">{{ t('feverDeltas') }}</th>
+                                <th class="border px-2 py-1 text-left">{{ t('ultimateFeverDeltas') }}</th>
+                                <th class="border px-2 py-1 text-left">{{ t('actions') }}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -950,7 +952,7 @@ const logTeamChange = (log) => `${log.before_team?.team_name || 'No team'} -> ${
                                 <td class="border px-2 py-1">{{ template.sort_order }}</td>
                                 <td class="border px-2 py-1">
                                     {{
-                                        template.has_ultimate_fever ? 'Normal + Fever + Ultimate' : (template.has_fever ? 'Normal + Fever' : 'Normal only')
+                                        template.has_ultimate_fever ? t('modeNormalFeverUltimate') : (template.has_fever ? t('modeNormalFever') : t('modeNormalOnly'))
                                     }}
                                 </td>
                                 <td class="border px-2 py-1">{{ (template.default_lightning_score_deltas || template.default_score_deltas || []).join(', ') || '-' }}</td>
@@ -963,7 +965,7 @@ const logTeamChange = (log) => `${log.before_team?.team_name || 'No team'} -> ${
                                         class="rounded border border-red-300 px-2 py-1 text-red-700"
                                         @click="deleteTemplate(template.id)"
                                     >
-                                        Delete
+                                        {{ t('delete') }}
                                     </button>
                                 </td>
                             </tr>
@@ -981,119 +983,129 @@ const logTeamChange = (log) => `${log.before_team?.team_name || 'No team'} -> ${
                     </button>
                     <div class="flex items-center gap-2">
                         <div class="flex items-center gap-1">
-                            <span class="rounded border px-2 py-0.5 text-xs" :class="statusBadgeClass(round.status)">{{ round.status }}</span>
-                            <span class="rounded border border-gray-200 bg-gray-100 px-2 py-0.5 text-xs text-gray-700">{{ round.phase }}</span>
+                            <span class="rounded border px-2 py-0.5 text-xs" :class="statusBadgeClass(round.status)">{{ round.status === 'draft' ? t('statusDraft') : (round.status === 'live' ? t('statusLive') : t('statusCompleted')) }}</span>
+                            <span class="rounded border border-gray-200 bg-gray-100 px-2 py-0.5 text-xs text-gray-700">
+                                {{
+                                    round.phase === 'lightning'
+                                        ? t('phaseLightning')
+                                        : (round.phase === 'buzzer_normal'
+                                            ? t('phaseBuzzerNormal')
+                                            : (round.phase === 'buzzer_fever'
+                                                ? t('phaseBuzzerFever')
+                                                : t('phaseBuzzerUltimateFever')))
+                                }}
+                            </span>
                             <span
                                 v-if="round.result?.is_stale"
                                 class="rounded border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs text-amber-800"
                             >
-                                Result Stale
+                                {{ t('resultStale') }}
                             </span>
                             <span
                                 v-if="round.participants.some((participant) => participant.assignment_mode === 'auto' && participant.assignment_reason === 'override')"
                                 class="rounded border border-blue-300 bg-blue-50 px-2 py-0.5 text-xs text-blue-800"
                             >
-                                Auto-updated from override
+                                {{ t('autoUpdatedFromOverride') }}
                             </span>
                         </div>
-                        <div class="text-xs text-gray-500">{{ round.code || 'No code' }}</div>
+                        <div class="text-xs text-gray-500">{{ round.code || t('noCode') }}</div>
                     </div>
                 </div>
                 <div v-if="!isRoundExpanded(round.id)" class="text-xs text-gray-500">
-                    Click round title to expand settings and participants.
+                    {{ t('clickRoundToExpand') }}
                 </div>
                 <div v-else-if="isSuperAdmin" class="mb-3 grid gap-2 md:grid-cols-4">
-                    <input v-model="round.name" class="rounded border px-2 py-1 text-sm" placeholder="Round name" />
-                    <input v-model="round.code" class="rounded border px-2 py-1 text-sm" placeholder="Code" />
+                    <input v-model="round.name" class="rounded border px-2 py-1 text-sm" :placeholder="t('roundName')" />
+                    <input v-model="round.code" class="rounded border px-2 py-1 text-sm" :placeholder="t('code')" />
                     <select v-model="round.status" class="rounded border px-2 py-1 text-sm">
-                        <option value="draft">draft</option>
-                        <option value="live">live</option>
-                        <option value="completed">completed</option>
+                        <option value="draft">{{ t('statusDraft') }}</option>
+                        <option value="live">{{ t('statusLive') }}</option>
+                        <option value="completed">{{ t('statusCompleted') }}</option>
                     </select>
                     <select v-model="round.phase" class="rounded border px-2 py-1 text-sm">
-                        <option value="lightning">lightning</option>
-                        <option value="buzzer_normal">buzzer normal</option>
-                        <option value="buzzer_fever">buzzer fever</option>
-                        <option value="buzzer_ultimate_fever">buzzer ultimate fever</option>
+                        <option value="lightning">{{ t('phaseLightning') }}</option>
+                        <option value="buzzer_normal">{{ t('phaseBuzzerNormal') }}</option>
+                        <option value="buzzer_fever">{{ t('phaseBuzzerFever') }}</option>
+                        <option value="buzzer_ultimate_fever">{{ t('phaseBuzzerUltimateFever') }}</option>
                     </select>
                     <input v-model="round.teams_per_round" type="number" min="2" max="8" class="rounded border px-2 py-1 text-sm" />
-                    <input v-model="round._default_score" type="number" min="0" class="rounded border px-2 py-1 text-sm" placeholder="Default score" />
+                    <input v-model="round._default_score" type="number" min="0" class="rounded border px-2 py-1 text-sm" :placeholder="t('defaultScore')" />
                     <select v-model="round.group_id" class="rounded border px-2 py-1 text-sm">
-                        <option :value="null">No group</option>
+                        <option :value="null">{{ t('noGroup') }}</option>
                         <option v-for="group in tournament.groups" :key="group.id" :value="group.id">
                             {{ group.name }}
                         </option>
                     </select>
                     <input v-model="round._scheduled_start_at_local" type="datetime-local" class="rounded border px-2 py-1 text-sm" />
-                    <input v-model="round.sort_order" type="number" class="rounded border px-2 py-1 text-sm" placeholder="Sort order" />
+                    <input v-model="round.sort_order" type="number" class="rounded border px-2 py-1 text-sm" :placeholder="t('sortOrder')" />
                     <label class="inline-flex items-center justify-between rounded border px-2 py-1 text-sm md:col-span-1">
-                        <span class="mr-2">Fever</span>
+                        <span class="mr-2">{{ t('fever') }}</span>
                         <input v-model="round.has_fever" type="checkbox" />
                     </label>
                     <label class="inline-flex items-center justify-between rounded border px-2 py-1 text-sm md:col-span-1">
-                        <span class="mr-2">Ultimate</span>
+                        <span class="mr-2">{{ t('ultimate') }}</span>
                         <input v-model="round.has_ultimate_fever" type="checkbox" />
                     </label>
                     <label class="inline-flex items-center justify-between rounded border px-2 py-1 text-sm md:col-span-1">
-                        <span class="mr-2">Hide Public Scores</span>
+                        <span class="mr-2">{{ t('hidePublicScores') }}</span>
                         <input v-model="round.hide_public_scores" type="checkbox" />
                     </label>
                     <div class="rounded border bg-gray-50 p-2 text-xs text-gray-600 md:col-span-4">
-                        Score Delta Buttons: comma-separated values shown on the Control page for this phase.
-                        Example <code>30,15,-15</code> creates +30, +15, and -15 buttons.
+                        {{ t('scoreDeltaButtonsHelp') }}
+                        {{ t('scoreDeltaButtonsExample') }} <code>30,15,-15</code> {{ t('scoreDeltaButtonsExampleSuffix') }}
                     </div>
                     <label class="block md:col-span-4">
-                        <div class="mb-1 text-xs font-semibold text-gray-700">Lightning Round Score Delta Buttons</div>
+                        <div class="mb-1 text-xs font-semibold text-gray-700">{{ t('lightningRoundScoreDeltaButtons') }}</div>
                         <input
                             v-model="round._lightning_score_deltas_text"
                             class="w-full rounded border px-2 py-1 text-sm"
-                            placeholder="Example: 20"
+                            :placeholder="t('exampleSingleDelta')"
                         />
                     </label>
                     <label class="block md:col-span-4">
-                        <div class="mb-1 text-xs font-semibold text-gray-700">Buzzer (Normal) Score Delta Buttons</div>
+                        <div class="mb-1 text-xs font-semibold text-gray-700">{{ t('buzzerNormalScoreDeltaButtons') }}</div>
                         <input
                             v-model="round._buzzer_normal_score_deltas_text"
                             class="w-full rounded border px-2 py-1 text-sm"
-                            placeholder="Example: 20,10,-10"
+                            :placeholder="t('exampleNormalDeltas')"
                         />
                     </label>
                     <label v-if="round.has_fever || round.has_ultimate_fever" class="block md:col-span-4">
-                        <div class="mb-1 text-xs font-semibold text-gray-700">Buzzer (Fever) Score Delta Buttons</div>
+                        <div class="mb-1 text-xs font-semibold text-gray-700">{{ t('buzzerFeverScoreDeltaButtons') }}</div>
                         <input
                             v-model="round._buzzer_fever_score_deltas_text"
                             class="w-full rounded border px-2 py-1 text-sm"
-                            placeholder="Example: 30,15,-15"
+                            :placeholder="t('exampleFeverDeltas')"
                         />
                     </label>
                     <label v-if="round.has_ultimate_fever" class="block md:col-span-4">
-                        <div class="mb-1 text-xs font-semibold text-gray-700">Buzzer (Ultimate Fever) Score Delta Buttons</div>
+                        <div class="mb-1 text-xs font-semibold text-gray-700">{{ t('buzzerUltimateScoreDeltaButtons') }}</div>
                         <input
                             v-model="round._buzzer_ultimate_score_deltas_text"
                             class="w-full rounded border px-2 py-1 text-sm"
-                            placeholder="Example: 40,20,-20"
+                            :placeholder="t('exampleUltimateDeltas')"
                         />
                     </label>
                     <div class="md:col-span-2 flex flex-wrap gap-2">
-                        <button class="rounded border px-3 py-1 text-sm" @click="saveRoundDetails(round)">Save Round Details</button>
-                        <button class="rounded border border-red-300 px-3 py-1 text-sm text-red-700" @click="deleteRound(round)">Delete Round</button>
+                        <button class="rounded border px-3 py-1 text-sm" @click="saveRoundDetails(round)">{{ t('saveRoundDetails') }}</button>
+                        <button class="rounded border border-red-300 px-3 py-1 text-sm text-red-700" @click="deleteRound(round)">{{ t('deleteRound') }}</button>
                     </div>
                 </div>
                 <div v-else-if="isRoundExpanded(round.id)" class="mb-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                    Round details are editable by superadmin only. You can still edit participant slots below.
+                    {{ t('roundDetailsSuperadminOnly') }}
                 </div>
                 <div v-if="isRoundExpanded(round.id)" class="grid gap-2 md:grid-cols-3">
                     <div v-for="participant in round.participants" :key="participant.id" class="rounded border p-2">
-                        <div class="text-xs text-gray-500">Slot {{ participant.slot }}</div>
+                        <div class="text-xs text-gray-500">{{ t('slot') }} {{ participant.slot }}</div>
                         <select v-model="participant.team_id" class="mt-1 w-full rounded border px-2 py-1 text-sm">
-                            <option :value="null">TBD</option>
+                            <option :value="null">{{ t('tbd') }}</option>
                             <option v-for="entry in tournament.tournament_teams" :key="entry.id" :value="entry.team_id">
                                 {{ entry.display_name_snapshot }}
                             </option>
                         </select>
                     </div>
                 </div>
-                <button v-if="isRoundExpanded(round.id)" class="mt-3 rounded border px-3 py-1" @click="updateParticipants(round)">Save Participants</button>
+                <button v-if="isRoundExpanded(round.id)" class="mt-3 rounded border px-3 py-1" @click="updateParticipants(round)">{{ t('saveParticipants') }}</button>
             </div>
         </div>
     </MainLayout>

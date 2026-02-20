@@ -2,6 +2,7 @@
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import MainLayout from '@/Layouts/MainLayout.vue';
+import { useI18n } from '@/composables/useI18n';
 
 defineProps({
     teams: Array,
@@ -17,6 +18,7 @@ const form = useForm({
 
 const page = usePage();
 const isSuperAdmin = computed(() => page.props.auth?.user?.role === 'super_admin');
+const { t } = useI18n();
 
 const submit = () => {
     form.post(route('admin.teams.store'), {
@@ -77,7 +79,7 @@ const removeTeam = (team) => {
         return;
     }
 
-    if (!confirm(`Archive team "${team.team_name}"?`)) {
+    if (!confirm(t('archiveTeamConfirm', { name: team.team_name }))) {
         return;
     }
 
@@ -88,36 +90,36 @@ const removeTeam = (team) => {
 </script>
 
 <template>
-    <Head title="Teams" />
-    <MainLayout title="Teams">
+    <Head :title="t('teamsTitle')" />
+    <MainLayout :title="t('teamsTitle')">
         <form
             v-if="isSuperAdmin"
             @submit.prevent="submit"
             class="mb-6 grid gap-2 rounded border bg-white p-4 md:grid-cols-4"
         >
-            <input v-model="form.university_name" placeholder="University" class="rounded border px-2 py-1" required />
-            <input v-model="form.team_name" placeholder="Team name" class="rounded border px-2 py-1" required />
-            <input v-model="form.short_name" placeholder="Short name" class="rounded border px-2 py-1" />
-            <input v-model="form.icon_path" placeholder="Icon URL (optional)" class="rounded border px-2 py-1" />
+            <input v-model="form.university_name" :placeholder="t('university')" class="rounded border px-2 py-1" required />
+            <input v-model="form.team_name" :placeholder="t('teamName')" class="rounded border px-2 py-1" required />
+            <input v-model="form.short_name" :placeholder="t('shortName')" class="rounded border px-2 py-1" />
+            <input v-model="form.icon_path" :placeholder="t('iconUrlOptional')" class="rounded border px-2 py-1" />
             <input
                 type="file"
                 accept="image/*"
                 class="rounded border px-2 py-1 md:col-span-2"
                 @change="form.icon_file = $event.target.files[0]"
             />
-            <div class="text-xs text-gray-500 md:col-span-4">Upload file will override URL if both are provided.</div>
-            <button class="rounded border bg-gray-900 px-3 py-1 text-white md:col-span-4">Create Team</button>
+            <div class="text-xs text-gray-500 md:col-span-4">{{ t('uploadOverridesUrl') }}</div>
+            <button class="rounded border bg-gray-900 px-3 py-1 text-white md:col-span-4">{{ t('createTeam') }}</button>
         </form>
 
         <div class="overflow-auto rounded border bg-white">
             <table class="min-w-full text-sm">
                 <thead class="bg-gray-50">
                     <tr>
-                        <th class="border px-2 py-1 text-left">University</th>
-                        <th class="border px-2 py-1 text-left">Team</th>
-                        <th class="border px-2 py-1 text-left">Short</th>
-                        <th class="border px-2 py-1 text-left">Icon</th>
-                        <th class="border px-2 py-1 text-left">Actions</th>
+                        <th class="border px-2 py-1 text-left">{{ t('university') }}</th>
+                        <th class="border px-2 py-1 text-left">{{ t('team') }}</th>
+                        <th class="border px-2 py-1 text-left">{{ t('short') }}</th>
+                        <th class="border px-2 py-1 text-left">{{ t('icon') }}</th>
+                        <th class="border px-2 py-1 text-left">{{ t('actions') }}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -137,16 +139,16 @@ const removeTeam = (team) => {
                                         class="rounded border border-blue-400 px-2 py-1 text-blue-700"
                                         @click="startEdit(team)"
                                     >
-                                        Edit
+                                        {{ t('edit') }}
                                     </button>
                                     <button
                                         v-if="isSuperAdmin"
                                         class="rounded border border-amber-400 px-2 py-1 text-amber-700"
                                         @click="removeTeam(team)"
                                     >
-                                        Archive
+                                        {{ t('archive') }}
                                     </button>
-                                    <span v-if="!isSuperAdmin" class="text-xs text-gray-500">Superadmin only</span>
+                                    <span v-if="!isSuperAdmin" class="text-xs text-gray-500">{{ t('superadminOnly') }}</span>
                                 </div>
                             </td>
                         </tr>
@@ -155,20 +157,20 @@ const removeTeam = (team) => {
                                 <form @submit.prevent="submitEdit(team.id)" class="grid gap-2 md:grid-cols-4">
                                     <input
                                         v-model="editForm.university_name"
-                                        placeholder="University"
+                                        :placeholder="t('university')"
                                         class="rounded border px-2 py-1"
                                         required
                                     />
                                     <input
                                         v-model="editForm.team_name"
-                                        placeholder="Team name"
+                                        :placeholder="t('teamName')"
                                         class="rounded border px-2 py-1"
                                         required
                                     />
-                                    <input v-model="editForm.short_name" placeholder="Short name" class="rounded border px-2 py-1" />
+                                    <input v-model="editForm.short_name" :placeholder="t('shortName')" class="rounded border px-2 py-1" />
                                     <input
                                         v-model="editForm.icon_path"
-                                        placeholder="Icon URL/path (optional)"
+                                        :placeholder="t('iconUrlPathOptional')"
                                         class="rounded border px-2 py-1"
                                     />
                                     <input
@@ -178,11 +180,11 @@ const removeTeam = (team) => {
                                         @change="editForm.icon_file = $event.target.files[0]"
                                     />
                                     <div class="text-xs text-gray-500 md:col-span-4">
-                                        Upload file will override URL/path if both are provided.
+                                        {{ t('uploadOverridesUrlPath') }}
                                     </div>
                                     <div class="flex gap-2 md:col-span-4">
-                                        <button class="rounded border bg-gray-900 px-3 py-1 text-white">Save Team</button>
-                                        <button type="button" class="rounded border px-3 py-1" @click="cancelEdit">Cancel</button>
+                                        <button class="rounded border bg-gray-900 px-3 py-1 text-white">{{ t('saveTeam') }}</button>
+                                        <button type="button" class="rounded border px-3 py-1" @click="cancelEdit">{{ t('cancel') }}</button>
                                     </div>
                                 </form>
                             </td>

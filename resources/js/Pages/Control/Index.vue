@@ -146,7 +146,7 @@ const startOrEndCompetition = () => {
 
 const clearRound = () => {
     if (!props.selectedRound) return;
-    const confirmed = confirm('Are you sure you want to clear this round? Scores will reset and status will return to draft.');
+    const confirmed = confirm(t('confirmClearRound'));
     if (!confirmed) return;
     runAction({ action: 'clear' });
 };
@@ -163,7 +163,7 @@ const prepareEndCompetitionModal = () => {
 
     const entries = (props.selectedRound.participants || []).map((participant) => ({
         slot: participant.slot,
-        name: participant.display_name_snapshot || `Team ${participant.slot}`,
+        name: participant.display_name_snapshot || `${t('team')} ${participant.slot}`,
         score: Number(scoreLookup[participant.slot] || 0),
         rank: null,
     }));
@@ -203,7 +203,7 @@ const phaseLabel = computed(() => {
 </script>
 
 <template>
-    <Head title="Control" />
+    <Head :title="t('control')" />
     <MainLayout :title="t('control')">
         <div class="mb-4 grid gap-2 rounded border bg-white p-4 md:grid-cols-2">
             <select class="rounded border px-2 py-1" :value="selectedTournamentId" @change="selectTournament">
@@ -275,16 +275,16 @@ const phaseLabel = computed(() => {
                 <table class="min-w-full text-sm">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th class="border px-2 py-1">Slot</th>
+                            <th class="border px-2 py-1">{{ t('slot') }}</th>
                             <th class="border px-2 py-1">{{ t('teamNames') }}</th>
                             <th class="border px-2 py-1">{{ t('scores') }}</th>
-                            <th class="border px-2 py-1">Actions</th>
+                            <th class="border px-2 py-1">{{ t('actions') }}</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr v-for="participant in selectedRound.participants" :key="participant.id">
                             <td class="border px-2 py-1">{{ participant.slot }}</td>
-                            <td class="border px-2 py-1">{{ participant.display_name_snapshot || `Team ${participant.slot}` }}</td>
+                            <td class="border px-2 py-1">{{ participant.display_name_snapshot || `${t('team')} ${participant.slot}` }}</td>
                             <td class="border px-2 py-1 text-center text-xl">{{ scoreMap[participant.slot] || 0 }}</td>
                             <td class="border px-2 py-1">
                                 <div class="flex flex-wrap gap-2">
@@ -307,18 +307,18 @@ const phaseLabel = computed(() => {
 
         <div v-if="isEndModalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
             <div class="w-full max-w-2xl rounded border bg-white p-4">
-                <h3 class="mb-3 text-lg font-semibold">Confirm Round Result</h3>
+                <h3 class="mb-3 text-lg font-semibold">{{ t('confirmRoundResult') }}</h3>
                 <p class="mb-3 text-sm text-gray-600">
-                    Review and adjust final scores/rankings before ending this competition.
+                    {{ t('reviewFinalScores') }}
                 </p>
                 <div class="overflow-auto rounded border">
                     <table class="min-w-full text-sm">
                         <thead class="bg-gray-50">
                             <tr>
-                                <th class="border px-2 py-1 text-left">Slot</th>
-                                <th class="border px-2 py-1 text-left">Team</th>
-                                <th class="border px-2 py-1 text-left">Score</th>
-                                <th class="border px-2 py-1 text-left">Rank</th>
+                                <th class="border px-2 py-1 text-left">{{ t('slot') }}</th>
+                                <th class="border px-2 py-1 text-left">{{ t('team') }}</th>
+                                <th class="border px-2 py-1 text-left">{{ t('scores') }}</th>
+                                <th class="border px-2 py-1 text-left">{{ t('rank') }}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -336,8 +336,8 @@ const phaseLabel = computed(() => {
                     </table>
                 </div>
                 <div class="mt-3 flex justify-end gap-2">
-                    <button class="rounded border px-3 py-1" @click="isEndModalOpen = false">Cancel</button>
-                    <button class="rounded border bg-gray-900 px-3 py-1 text-white" @click="confirmEndCompetition">Confirm & End</button>
+                    <button class="rounded border px-3 py-1" @click="isEndModalOpen = false">{{ t('cancel') }}</button>
+                    <button class="rounded border bg-gray-900 px-3 py-1 text-white" @click="confirmEndCompetition">{{ t('confirmAndEnd') }}</button>
                 </div>
             </div>
         </div>

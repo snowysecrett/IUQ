@@ -3,6 +3,7 @@ import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import MainLayout from '@/Layouts/MainLayout.vue';
 import { statusBadgeClass } from '@/composables/useStatusBadge';
 import { computed } from 'vue';
+import { useI18n } from '@/composables/useI18n';
 
 defineProps({
     tournaments: Array,
@@ -10,6 +11,7 @@ defineProps({
 
 const page = usePage();
 const isSuperAdmin = computed(() => page.props.auth?.user?.role === 'super_admin');
+const { t } = useI18n();
 
 const form = useForm({
     name: '',
@@ -41,47 +43,47 @@ const submitClone = () => {
 </script>
 
 <template>
-    <Head title="Tournaments" />
-    <MainLayout title="Tournaments">
+    <Head :title="t('tournamentsTitle')" />
+    <MainLayout :title="t('tournamentsTitle')">
         <form v-if="isSuperAdmin" @submit.prevent="submit" class="mb-6 grid gap-2 rounded border bg-white p-4 md:grid-cols-5">
-            <input v-model="form.name" class="rounded border px-2 py-1" placeholder="Tournament name" required />
-            <input v-model="form.year" type="number" class="rounded border px-2 py-1" placeholder="Year" required />
+            <input v-model="form.name" class="rounded border px-2 py-1" :placeholder="t('tournamentName')" required />
+            <input v-model="form.year" type="number" class="rounded border px-2 py-1" :placeholder="t('year')" required />
             <input v-model="form.scheduled_start_at" type="datetime-local" class="rounded border px-2 py-1" />
-            <input v-model="form.timezone" class="rounded border px-2 py-1" placeholder="Timezone" />
-            <input v-model="form.logo_path" class="rounded border px-2 py-1" placeholder="Logo URL/path" />
+            <input v-model="form.timezone" class="rounded border px-2 py-1" :placeholder="t('timezone')" />
+            <input v-model="form.logo_path" class="rounded border px-2 py-1" :placeholder="t('logoUrlPath')" />
             <input
                 type="file"
                 accept="image/*"
                 class="rounded border px-2 py-1 md:col-span-3"
                 @input="form.logo_file = $event.target.files[0]"
             />
-            <div class="text-xs text-gray-500 md:col-span-2">Upload file overrides Logo URL/path when both are provided.</div>
-            <button class="rounded border bg-gray-900 px-3 py-1 text-white md:col-span-5">Create Tournament</button>
+            <div class="text-xs text-gray-500 md:col-span-2">{{ t('uploadOverridesLogo') }}</div>
+            <button class="rounded border bg-gray-900 px-3 py-1 text-white md:col-span-5">{{ t('createTournament') }}</button>
         </form>
 
         <form v-if="isSuperAdmin" @submit.prevent="submitClone" class="mb-6 grid gap-2 rounded border bg-white p-4 md:grid-cols-5">
             <select v-model="cloneForm.source_tournament_id" class="rounded border px-2 py-1" required>
-                <option disabled value="">Copy rules from...</option>
+                <option disabled value="">{{ t('copyRulesFrom') }}</option>
                 <option v-for="tournament in tournaments" :key="`source-${tournament.id}`" :value="tournament.id">
                     {{ tournament.name }} ({{ tournament.year }})
                 </option>
             </select>
-            <input v-model="cloneForm.name" class="rounded border px-2 py-1" placeholder="New tournament name" required />
-            <input v-model="cloneForm.year" type="number" class="rounded border px-2 py-1" placeholder="New year" required />
+            <input v-model="cloneForm.name" class="rounded border px-2 py-1" :placeholder="t('newTournamentName')" required />
+            <input v-model="cloneForm.year" type="number" class="rounded border px-2 py-1" :placeholder="t('newYear')" required />
             <input v-model="cloneForm.scheduled_start_at" type="datetime-local" class="rounded border px-2 py-1" />
-            <div class="rounded border border-blue-200 bg-blue-50 px-2 py-1 text-xs text-blue-800">Copies rules only.</div>
-            <button class="rounded border bg-gray-900 px-3 py-1 text-white md:col-span-5">Clone Rules to New Tournament</button>
+            <div class="rounded border border-blue-200 bg-blue-50 px-2 py-1 text-xs text-blue-800">{{ t('copiesRulesOnly') }}</div>
+            <button class="rounded border bg-gray-900 px-3 py-1 text-white md:col-span-5">{{ t('cloneRulesToNewTournament') }}</button>
         </form>
 
         <div class="overflow-auto rounded border bg-white">
             <table class="min-w-full text-sm">
                 <thead class="bg-gray-50">
                     <tr>
-                        <th class="border px-2 py-1 text-left">Name</th>
-                        <th class="border px-2 py-1 text-left">Year</th>
-                        <th class="border px-2 py-1 text-left">Status</th>
-                        <th class="border px-2 py-1 text-left">Teams</th>
-                        <th class="border px-2 py-1 text-left">Rounds</th>
+                        <th class="border px-2 py-1 text-left">{{ t('name') }}</th>
+                        <th class="border px-2 py-1 text-left">{{ t('year') }}</th>
+                        <th class="border px-2 py-1 text-left">{{ t('status') }}</th>
+                        <th class="border px-2 py-1 text-left">{{ t('teams') }}</th>
+                        <th class="border px-2 py-1 text-left">{{ t('rounds') }}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -94,7 +96,11 @@ const submitClone = () => {
                         <td class="border px-2 py-1">{{ tournament.year }}</td>
                         <td class="border px-2 py-1">
                             <span class="rounded border px-2 py-0.5" :class="statusBadgeClass(tournament.status)">
-                                {{ tournament.status }}
+                                {{
+                                    tournament.status === 'draft'
+                                        ? t('statusDraft')
+                                        : (tournament.status === 'live' ? t('statusLive') : t('statusCompleted'))
+                                }}
                             </span>
                         </td>
                         <td class="border px-2 py-1">{{ tournament.tournament_teams_count }}</td>

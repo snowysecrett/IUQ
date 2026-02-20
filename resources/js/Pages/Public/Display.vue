@@ -3,6 +3,7 @@ import { Head, router } from '@inertiajs/vue3';
 import MainLayout from '@/Layouts/MainLayout.vue';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import axios from 'axios';
+import { useI18n } from '@/composables/useI18n';
 
 const props = defineProps({
     tournaments: Array,
@@ -10,6 +11,7 @@ const props = defineProps({
     selectedTournament: Object,
     selectedRound: Object,
 });
+const { t } = useI18n();
 
 const normalizeRound = (roundPayload) => {
     if (!roundPayload) {
@@ -143,8 +145,8 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-    <Head title="Display" />
-    <MainLayout title="Display Page">
+    <Head :title="t('display')" />
+    <MainLayout :title="t('displayPageTitle')">
         <div class="mb-4 grid gap-2 rounded border bg-white p-4 md:grid-cols-2">
             <select class="rounded border px-2 py-1" :value="selectedTournament?.id" @change="selectTournament">
                 <option v-for="tournament in tournaments" :key="tournament.id" :value="tournament.id">
@@ -165,7 +167,7 @@ onBeforeUnmount(() => {
                     v-if="liveRound.hide_public_scores"
                     class="rounded border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800"
                 >
-                    Scores Hidden
+                    {{ t('scoresHidden') }}
                 </span>
             </div>
             <div class="grid" :style="`grid-template-columns: repeat(${liveRound.participants.length || 1}, minmax(0, 1fr));`">
@@ -179,15 +181,15 @@ onBeforeUnmount(() => {
                         <img
                             v-if="participant.icon_url"
                             :src="participant.icon_url"
-                            :alt="participant.display_name_snapshot || `Team ${participant.slot}`"
+                            :alt="participant.display_name_snapshot || `${t('team')} ${participant.slot}`"
                             class="mx-auto h-24 w-24 rounded-none object-contain"
                         />
                         <div v-else class="mx-auto flex h-24 w-24 items-center justify-center rounded-none text-xs text-gray-500">
-                            No Logo
+                            {{ t('noLogo') }}
                         </div>
                     </div>
                     <div class="border-b px-3 py-6 text-center text-4xl font-semibold">
-                        {{ participant.display_name_snapshot || `Team ${participant.slot}` }}
+                        {{ participant.display_name_snapshot || `${t('team')} ${participant.slot}` }}
                     </div>
                     <div class="px-3 py-10 text-center text-7xl font-light">{{ scoreText(participant.slot) }}</div>
                 </div>
@@ -196,10 +198,10 @@ onBeforeUnmount(() => {
                 <img
                     v-if="selectedTournament?.logo_url"
                     :src="selectedTournament.logo_url"
-                    :alt="`${selectedTournament?.name || 'Tournament'} logo`"
+                    :alt="`${selectedTournament?.name || t('tournament')} logo`"
                     class="mx-auto max-h-28 w-auto object-contain"
                 />
-                <div v-else class="text-2xl font-semibold">CUHKCAS Logo Placeholder</div>
+                <div v-else class="text-2xl font-semibold">{{ t('cuhkcasLogoPlaceholder') }}</div>
             </div>
             <div class="border-t px-4 py-4 text-center text-4xl font-bold">{{ selectedTournament?.name }}</div>
         </div>

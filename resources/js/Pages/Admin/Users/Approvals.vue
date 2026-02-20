@@ -1,10 +1,12 @@
 <script setup>
 import { Head, router } from '@inertiajs/vue3';
 import MainLayout from '@/Layouts/MainLayout.vue';
+import { useI18n } from '@/composables/useI18n';
 
 defineProps({
     users: Array,
 });
+const { t } = useI18n();
 
 const setApproval = (user, approved) => {
     router.patch(route('admin.user-approvals.update', user.id), { approved });
@@ -30,17 +32,17 @@ const isOnline = (value) => {
 </script>
 
 <template>
-    <Head title="User Approvals" />
-    <MainLayout title="User Approvals">
+    <Head :title="t('userApprovals')" />
+    <MainLayout :title="t('userApprovals')">
         <div class="overflow-auto rounded border bg-white">
             <table class="min-w-full text-sm">
                 <thead class="bg-gray-50">
                     <tr>
-                        <th class="border px-2 py-1 text-left">Name</th>
-                        <th class="border px-2 py-1 text-left">Email</th>
-                        <th class="border px-2 py-1 text-left">Last Online</th>
-                        <th class="border px-2 py-1 text-left">Approved</th>
-                        <th class="border px-2 py-1 text-left">Actions</th>
+                        <th class="border px-2 py-1 text-left">{{ t('name') }}</th>
+                        <th class="border px-2 py-1 text-left">{{ t('email') }}</th>
+                        <th class="border px-2 py-1 text-left">{{ t('lastOnline') }}</th>
+                        <th class="border px-2 py-1 text-left">{{ t('approved') }}</th>
+                        <th class="border px-2 py-1 text-left">{{ t('actions') }}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -53,14 +55,14 @@ const isOnline = (value) => {
                                 v-if="isOnline(user.last_seen_at)"
                                 class="rounded border border-green-200 bg-green-50 px-2 py-0.5 text-xs text-green-700"
                             >
-                                Online
+                                {{ t('online') }}
                             </span>
                         </td>
-                        <td class="border px-2 py-1">{{ user.approved_at ? 'Yes' : 'No' }}</td>
+                        <td class="border px-2 py-1">{{ user.approved_at ? t('yes') : t('no') }}</td>
                         <td class="border px-2 py-1">
                             <div class="flex gap-2">
-                                <button class="rounded border px-2 py-1" @click="setApproval(user, true)">Approve</button>
-                                <button class="rounded border px-2 py-1" @click="setApproval(user, false)">Revoke</button>
+                                <button class="rounded border px-2 py-1" @click="setApproval(user, true)">{{ t('approve') }}</button>
+                                <button class="rounded border px-2 py-1" @click="setApproval(user, false)">{{ t('revoke') }}</button>
                             </div>
                         </td>
                     </tr>

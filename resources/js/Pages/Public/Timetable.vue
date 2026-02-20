@@ -24,7 +24,7 @@ const selectTournament = (event) => {
 
 const formatScheduledAt = (value) => {
     if (!value) {
-        return 'TBD';
+        return t('tbd');
     }
 
     const normalized = String(value).replace('T', ' ').replace('Z', '');
@@ -55,11 +55,11 @@ const phaseLabel = (phase) => {
 </script>
 
 <template>
-    <Head title="Timetable" />
-    <MainLayout title="Timetable Page">
+    <Head :title="t('timetable')" />
+    <MainLayout :title="t('timetablePageTitle')">
         <div class="mb-4 grid gap-2 rounded border bg-white p-4 md:grid-cols-2">
             <select class="rounded border px-2 py-1" @change="filterYear">
-                <option value="">All years</option>
+                <option value="">{{ t('allYears') }}</option>
                 <option v-for="year in years" :key="year" :value="year">{{ year }}</option>
             </select>
             <select class="rounded border px-2 py-1" :value="selectedTournament?.id" @change="selectTournament">
@@ -77,17 +77,17 @@ const phaseLabel = (phase) => {
                         v-if="round.hide_public_scores"
                         class="rounded border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800"
                     >
-                        Scores Hidden
+                        {{ t('scoresHidden') }}
                     </span>
                 </div>
                 <table class="min-w-full text-sm">
                     <thead>
                         <tr>
-                            <th class="border px-2 py-1 text-left">Status</th>
-                            <th class="border px-2 py-1 text-left">Current Phase</th>
-                            <th class="border px-2 py-1 text-left">Scheduled</th>
-                            <th class="border px-2 py-1 text-left">Teams</th>
-                            <th class="border px-2 py-1 text-left">Scores</th>
+                            <th class="border px-2 py-1 text-left">{{ t('roundStatus') }}</th>
+                            <th class="border px-2 py-1 text-left">{{ t('roundPhase') }}</th>
+                            <th class="border px-2 py-1 text-left">{{ t('scheduled') }}</th>
+                            <th class="border px-2 py-1 text-left">{{ t('teams') }}</th>
+                            <th class="border px-2 py-1 text-left">{{ t('scores') }}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -101,12 +101,12 @@ const phaseLabel = (phase) => {
                             <td class="border px-2 py-1">{{ formatScheduledAt(round.scheduled_start_at) }}</td>
                             <td class="border px-2 py-1">
                                 <span v-for="participant in round.participants" :key="participant.id" class="mr-2 inline-block rounded bg-gray-100 px-2 py-0.5">
-                                    {{ participant.display_name_snapshot || `Team ${participant.slot}` }}
+                                    {{ participant.display_name_snapshot || `${t('team')} ${participant.slot}` }}
                                 </span>
                             </td>
                             <td class="border px-2 py-1">
                                 <span v-for="participant in round.participants" :key="`${participant.id}-score`" class="mr-2 inline-block rounded bg-gray-100 px-2 py-0.5">
-                                    {{ participant.display_name_snapshot || `Team ${participant.slot}` }}: {{ scoreFor(round, participant.slot) }}
+                                    {{ participant.display_name_snapshot || `${t('team')} ${participant.slot}` }}: {{ scoreFor(round, participant.slot) }}
                                 </span>
                             </td>
                         </tr>

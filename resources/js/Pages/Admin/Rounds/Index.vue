@@ -3,6 +3,7 @@ import { Head, router, useForm } from '@inertiajs/vue3';
 import MainLayout from '@/Layouts/MainLayout.vue';
 import { statusBadgeClass } from '@/composables/useStatusBadge';
 import { ref } from 'vue';
+import { useI18n } from '@/composables/useI18n';
 
 const props = defineProps({
     rounds: Array,
@@ -21,6 +22,20 @@ const isOverwriteModalOpen = ref(false);
 const overwriteRoundId = ref(null);
 const overwriteEntries = ref([]);
 const forceApply = ref(false);
+const { t } = useI18n();
+const statusLabel = (status) => {
+    if (status === 'draft') return t('statusDraft');
+    if (status === 'live') return t('statusLive');
+    if (status === 'completed') return t('statusCompleted');
+    return status;
+};
+const phaseLabel = (phase) => {
+    if (phase === 'lightning') return t('phaseLightning');
+    if (phase === 'buzzer_normal') return t('phaseBuzzerNormal');
+    if (phase === 'buzzer_fever') return t('phaseBuzzerFever');
+    if (phase === 'buzzer_ultimate_fever') return t('phaseBuzzerUltimateFever');
+    return phase;
+};
 
 const applyFilters = () => {
     router.get(route('admin.rounds.index'), filterForm.data(), {
@@ -41,7 +56,7 @@ const clearFilters = () => {
 
 const formatScheduledAt = (value) => {
     if (!value) {
-        return 'No schedule';
+        return t('noSchedule');
     }
 
     const normalized = String(value).replace('T', ' ').replace('Z', '');
@@ -82,29 +97,29 @@ const submitOverwriteResult = () => {
 </script>
 
 <template>
-    <Head title="Rounds" />
-    <MainLayout title="Rounds">
+    <Head :title="t('rounds')" />
+    <MainLayout :title="t('rounds')">
         <form @submit.prevent="applyFilters" class="mb-4 grid gap-2 rounded border bg-white p-4 md:grid-cols-5">
-            <input v-model="filterForm.search" class="rounded border px-2 py-1" placeholder="Search round or tournament" />
+            <input v-model="filterForm.search" class="rounded border px-2 py-1" :placeholder="`${t('round')} / ${t('tournament')}`" />
             <select v-model="filterForm.status" class="rounded border px-2 py-1">
-                <option value="">All statuses</option>
-                <option value="draft">draft</option>
-                <option value="live">live</option>
-                <option value="completed">completed</option>
+                <option value="">{{ t('allStatuses') }}</option>
+                <option value="draft">{{ t('statusDraft') }}</option>
+                <option value="live">{{ t('statusLive') }}</option>
+                <option value="completed">{{ t('statusCompleted') }}</option>
             </select>
             <select v-model="filterForm.tournament_id" class="rounded border px-2 py-1">
-                <option value="">All tournaments</option>
+                <option value="">{{ t('allTournaments') }}</option>
                 <option v-for="tournament in tournaments" :key="tournament.id" :value="tournament.id">
                     {{ tournament.name }} ({{ tournament.year }})
                 </option>
             </select>
             <select v-model="filterForm.year" class="rounded border px-2 py-1">
-                <option value="">All years</option>
+                <option value="">{{ t('allYears') }}</option>
                 <option v-for="year in years" :key="year" :value="year">{{ year }}</option>
             </select>
             <div class="flex gap-2">
-                <button class="rounded border bg-gray-900 px-3 py-1 text-white">Apply</button>
-                <button type="button" class="rounded border px-3 py-1" @click="clearFilters">Clear</button>
+                <button class="rounded border bg-gray-900 px-3 py-1 text-white">{{ t('apply') }}</button>
+                <button type="button" class="rounded border px-3 py-1" @click="clearFilters">{{ t('clearFilters') }}</button>
             </div>
         </form>
 
@@ -112,12 +127,12 @@ const submitOverwriteResult = () => {
             <table class="min-w-full text-sm">
                 <thead class="bg-gray-50">
                     <tr>
-                        <th class="border px-2 py-1 text-left">Tournament</th>
-                        <th class="border px-2 py-1 text-left">Round</th>
-                        <th class="border px-2 py-1 text-left">Status</th>
-                        <th class="border px-2 py-1 text-left">Phase</th>
-                        <th class="border px-2 py-1 text-left">Participants</th>
-                        <th class="border px-2 py-1 text-left">Winner</th>
+                        <th class="border px-2 py-1 text-left">{{ t('tournament') }}</th>
+                        <th class="border px-2 py-1 text-left">{{ t('round') }}</th>
+                        <th class="border px-2 py-1 text-left">{{ t('roundStatus') }}</th>
+                        <th class="border px-2 py-1 text-left">{{ t('phase') }}</th>
+                        <th class="border px-2 py-1 text-left">{{ t('participants') }}</th>
+                        <th class="border px-2 py-1 text-left">{{ t('winner') }}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -125,15 +140,15 @@ const submitOverwriteResult = () => {
                         <td class="border px-2 py-1">{{ round.tournament.name }} ({{ round.tournament.year }})</td>
                         <td class="border px-2 py-1">
                             <div class="font-medium">{{ round.name }}</div>
-                            <div class="text-xs text-gray-500">{{ round.code || 'No code' }}</div>
+                            <div class="text-xs text-gray-500">{{ round.code || t('noCode') }}</div>
                             <div class="text-xs text-gray-500">{{ formatScheduledAt(round.scheduled_start_at) }}</div>
                         </td>
                         <td class="border px-2 py-1">
-                            <span class="rounded border px-2 py-0.5" :class="statusBadgeClass(round.status)">{{ round.status }}</span>
-                            <div v-if="round.auto_updated_from_override" class="mt-1 text-xs text-blue-700">Auto-updated from override</div>
-                            <div v-if="round.result_is_stale" class="mt-1 text-xs text-amber-700">Result stale</div>
+                            <span class="rounded border px-2 py-0.5" :class="statusBadgeClass(round.status)">{{ statusLabel(round.status) }}</span>
+                            <div v-if="round.auto_updated_from_override" class="mt-1 text-xs text-blue-700">{{ t('autoUpdatedFromOverride') }}</div>
+                            <div v-if="round.result_is_stale" class="mt-1 text-xs text-amber-700">{{ t('resultStale') }}</div>
                         </td>
-                        <td class="border px-2 py-1">{{ round.phase }}</td>
+                        <td class="border px-2 py-1">{{ phaseLabel(round.phase) }}</td>
                         <td class="border px-2 py-1">
                             <div class="flex flex-wrap gap-1">
                                 <span
@@ -148,18 +163,18 @@ const submitOverwriteResult = () => {
                         <td class="border px-2 py-1">
                             <template v-if="round.winner">
                                 <div class="font-medium">{{ round.winner.name }}</div>
-                                <div class="text-xs text-gray-500">Score: {{ round.winner.score }}</div>
+                                <div class="text-xs text-gray-500">{{ t('scoreLabel') }}: {{ round.winner.score }}</div>
                             </template>
                             <span v-else>-</span>
                             <div v-if="round.status === 'completed'" class="mt-2">
                                 <button class="rounded border px-2 py-1 text-xs" @click="openOverwriteModal(round)">
-                                    Overwrite Result
+                                    {{ t('overwriteResult') }}
                                 </button>
                             </div>
                         </td>
                     </tr>
                     <tr v-if="rounds.length === 0">
-                        <td colspan="6" class="border px-2 py-6 text-center text-gray-500">No rounds found.</td>
+                        <td colspan="6" class="border px-2 py-6 text-center text-gray-500">{{ t('noRoundsFound') }}</td>
                     </tr>
                 </tbody>
             </table>
@@ -167,15 +182,15 @@ const submitOverwriteResult = () => {
 
         <div v-if="isOverwriteModalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
             <div class="w-full max-w-2xl rounded border bg-white p-4">
-                <h3 class="mb-3 text-lg font-semibold">Overwrite Round Result</h3>
+                <h3 class="mb-3 text-lg font-semibold">{{ t('overwriteRoundResult') }}</h3>
                 <div class="overflow-auto rounded border">
                     <table class="min-w-full text-sm">
                         <thead class="bg-gray-50">
                             <tr>
-                                <th class="border px-2 py-1 text-left">Slot</th>
-                                <th class="border px-2 py-1 text-left">Team</th>
-                                <th class="border px-2 py-1 text-left">Score</th>
-                                <th class="border px-2 py-1 text-left">Rank</th>
+                                <th class="border px-2 py-1 text-left">{{ t('slot') }}</th>
+                                <th class="border px-2 py-1 text-left">{{ t('team') }}</th>
+                                <th class="border px-2 py-1 text-left">{{ t('scores') }}</th>
+                                <th class="border px-2 py-1 text-left">{{ t('rank') }}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -194,11 +209,11 @@ const submitOverwriteResult = () => {
                 </div>
                 <label class="mt-3 inline-flex items-center gap-2 text-sm">
                     <input v-model="forceApply" type="checkbox" />
-                    Force apply auto-advancement (overwrite manual-locked target slots)
+                    {{ t('forceApplyAutoAdvancement') }}
                 </label>
                 <div class="mt-3 flex justify-end gap-2">
-                    <button class="rounded border px-3 py-1" @click="isOverwriteModalOpen = false">Cancel</button>
-                    <button class="rounded border bg-gray-900 px-3 py-1 text-white" @click="submitOverwriteResult">Save Result</button>
+                    <button class="rounded border px-3 py-1" @click="isOverwriteModalOpen = false">{{ t('cancel') }}</button>
+                    <button class="rounded border bg-gray-900 px-3 py-1 text-white" @click="submitOverwriteResult">{{ t('saveResult') }}</button>
                 </div>
             </div>
         </div>
