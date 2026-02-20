@@ -30,6 +30,7 @@ const canAccessDisplay = computed(() => {
 const homeHref = computed(() => user.value ? route('dashboard') : '/');
 const onlineUsers = computed(() => page.props.presence?.online_users || []);
 const onlineCount = computed(() => page.props.presence?.online_count || 0);
+const visitorsOnlineCount = computed(() => page.props.presence?.visitors_online_count || 0);
 const formatDateTime = (value) => {
     if (!value) return '-';
     if (typeof value === 'string' && value.includes('T')) {
@@ -54,6 +55,12 @@ const formatDateTime = (value) => {
                     <Link v-if="isSuperAdmin" :href="route('admin.user-approvals.index')" class="rounded border px-2 py-1 text-sm">{{ t('userApprovals') }}</Link>
                 </div>
                 <div class="flex items-center gap-2 text-sm">
+                    <span
+                        v-if="isSuperAdmin"
+                        class="rounded border border-indigo-200 bg-indigo-50 px-2 py-1 text-xs text-indigo-700"
+                    >
+                        Visitors online: {{ visitorsOnlineCount }}
+                    </span>
                     <details v-if="isSuperAdmin" class="relative">
                         <summary class="cursor-pointer rounded border px-2 py-1 list-none">Online: {{ onlineCount }}</summary>
                         <div class="absolute right-0 z-20 mt-1 w-80 rounded border bg-white p-2 shadow">
