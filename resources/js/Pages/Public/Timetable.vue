@@ -52,6 +52,13 @@ const phaseLabel = (phase) => {
 
     return phase || '-';
 };
+
+const statusLabel = (status) => {
+    if (status === 'draft') return t('statusDraft');
+    if (status === 'live') return t('statusLive');
+    if (status === 'completed') return t('statusCompleted');
+    return status || '-';
+};
 </script>
 
 <template>
@@ -94,7 +101,7 @@ const phaseLabel = (phase) => {
                         <tr>
                             <td class="border px-2 py-1">
                                 <span class="rounded border px-2 py-0.5" :class="statusBadgeClass(round.status)">
-                                    {{ round.status }}
+                                    {{ statusLabel(round.status) }}
                                 </span>
                             </td>
                             <td class="border px-2 py-1">{{ phaseLabel(round.phase) }}</td>

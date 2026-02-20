@@ -200,6 +200,13 @@ const phaseLabel = computed(() => {
 
     return props.selectedRound?.phase;
 });
+
+const statusLabel = (status) => {
+    if (status === 'draft') return t('statusDraft');
+    if (status === 'live') return t('statusLive');
+    if (status === 'completed') return t('statusCompleted');
+    return status;
+};
 </script>
 
 <template>
@@ -223,7 +230,7 @@ const phaseLabel = computed(() => {
                 <div class="grid gap-2 text-sm md:grid-cols-2">
                     <div>
                         <span class="font-semibold">{{ t('roundStatus') }}:</span>
-                        <span class="ml-1 rounded border px-2 py-0.5" :class="statusBadgeClass(selectedRound.status)">{{ selectedRound.status }}</span>
+                        <span class="ml-1 rounded border px-2 py-0.5" :class="statusBadgeClass(selectedRound.status)">{{ statusLabel(selectedRound.status) }}</span>
                     </div>
                     <div>
                         <span class="font-semibold">{{ t('roundPhase') }}:</span>
