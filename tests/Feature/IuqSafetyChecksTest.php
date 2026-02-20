@@ -76,6 +76,28 @@ class IuqSafetyChecksTest extends TestCase
         $this->assertSame(3, Round::query()->where('name', 'Template Round')->firstOrFail()->participants()->count());
     }
 
+    public function test_last_seen_updates_on_authenticated_request_even_after_recent_guest_ping(): void
+    {
+        $admin = User::factory()->create([
+            'role' => User::ROLE_ADMIN,
+            'approved_at' => now(),
+            'last_seen_at' => now()->subDay(),
+        ]);
+
+        // Simulate recent guest heartbeat in same browser session.
+        $this->withSession([
+            'last_seen_ping_at_guest' => now()->timestamp,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('dashboard'))
+            ->assertOk();
+
+        $admin->refresh();
+        $this->assertNotNull($admin->last_seen_at);
+        $this->assertTrue($admin->last_seen_at->greaterThan(now()->subMinutes(2)));
+    }
+
     public function test_clear_resets_scores_to_round_default_score_and_draft_state(): void
     {
         $superAdmin = User::factory()->create([

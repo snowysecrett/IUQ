@@ -16,7 +16,8 @@ class UpdateLastSeenAt
 
         if ($user) {
             $now = now();
-            $lastPingAt = (int) $request->session()->get('last_seen_ping_at', 0);
+            $lastPingKey = 'last_seen_ping_at_user_'.$user->id;
+            $lastPingAt = (int) $request->session()->get($lastPingKey, 0);
 
             // Throttle writes: persist at most once per minute per session.
             if ($now->timestamp - $lastPingAt >= 60) {
@@ -35,11 +36,12 @@ class UpdateLastSeenAt
                     ], ['session_id'], ['user_id', 'is_authenticated', 'last_seen_at', 'updated_at']);
                 }
 
-                $request->session()->put('last_seen_ping_at', $now->timestamp);
+                $request->session()->put($lastPingKey, $now->timestamp);
             }
         } else {
             $now = now();
-            $lastPingAt = (int) $request->session()->get('last_seen_ping_at', 0);
+            $lastPingKey = 'last_seen_ping_at_guest';
+            $lastPingAt = (int) $request->session()->get($lastPingKey, 0);
 
             if ($now->timestamp - $lastPingAt >= 60 && Schema::hasTable('visitor_presences')) {
                 DB::table('visitor_presences')->upsert([
@@ -53,7 +55,7 @@ class UpdateLastSeenAt
                     ],
                 ], ['session_id'], ['user_id', 'is_authenticated', 'last_seen_at', 'updated_at']);
 
-                $request->session()->put('last_seen_ping_at', $now->timestamp);
+                $request->session()->put($lastPingKey, $now->timestamp);
             }
         }
 
