@@ -209,7 +209,15 @@ const statusLabel = (status) => {
     return status;
 };
 
-const bonusIndicatorForSlot = (slot) => props.bonusIndicatorsBySlot?.[slot] || null;
+const bonusIndicatorForSlot = (slot) => {
+    const indicator = props.bonusIndicatorsBySlot?.[slot] || null;
+    if (!indicator) return null;
+
+    const bonus = Number(indicator.context?.bonus_score || 0);
+    if (bonus === 0) return null;
+
+    return indicator;
+};
 const bonusIndicatorClass = (indicator) => {
     if (!indicator) return '';
     if (indicator.status === 'bonus_applied') {
