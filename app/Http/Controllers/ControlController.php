@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Events\RoundUpdated;
+use App\Models\AdvancementRule;
 use App\Models\AdvancementLog;
 use App\Models\Round;
 use App\Models\RoundAction;
@@ -207,7 +208,7 @@ class ControlController extends Controller
                     return 'Round updated.';
 
                 case 'clear':
-                    $lockedRound->scores()->lockForUpdate()->update(['score' => (int) ($lockedRound->default_score ?? 100)]);
+                    $this->resetRoundScoresToBaseline($lockedRound);
                     $lockedRound->actions()->whereNull('rolled_back_at')->lockForUpdate()->update(['rolled_back_at' => now()]);
                     $lockedRound->result()?->delete();
                     $lockedRound->update(['status' => 'draft', 'phase' => 'lightning']);
@@ -312,5 +313,75 @@ class ControlController extends Controller
         $result->entries()->createMany($entries->sortBy('slot')->values()->all());
 
         return $result;
+    }
+
+    private function resetRoundScoresToBaseline(Round $round): void
+    {
+        $defaultScore = (int) ($round->default_score ?? 100);
+
+        $participants = $round->participants()->lockForUpdate()->get()->keyBy('slot');
+        $scores = $round->scores()->lockForUpdate()->get()->keyBy('slot');
+
+        $rulesBySlot = AdvancementRule::query()
+            ->where('tournament_id', $round->tournament_id)
+            ->where('action_type', 'advance')
+            ->where('target_round_id', $round->id)
+            ->where('is_active', true)
+            ->orderBy('priority')
+            ->orderBy('id')
+            ->get()
+            ->groupBy(fn (AdvancementRule $rule) => (int) $rule->target_slot);
+
+        $slots = $participants->keys()->merge($scores->keys())->unique()->sort()->values();
+
+        foreach ($slots as $slot) {
+            $slot = (int) $slot;
+            $participant = $participants->get($slot);
+            $bonus = 0;
+
+            if (
+                $participant
+                && $participant->team_id
+                && $participant->assignment_mode === 'auto'
+                && $participant->assignment_source_type
+                && $participant->assignment_source_id
+                && $participant->assignment_source_rank
+            ) {
+                $matchingRule = ($rulesBySlot->get($slot) ?? collect())->first(function (AdvancementRule $rule) use ($participant) {
+                    if ($rule->source_type !== $participant->assignment_source_type) {
+                        return false;
+                    }
+
+                    if ((int) $rule->source_rank !== (int) $participant->assignment_source_rank) {
+                        return false;
+                    }
+
+                    if ($rule->source_type === 'round') {
+                        return (int) ($rule->source_round_id ?? 0) === (int) $participant->assignment_source_id;
+                    }
+
+                    if ($rule->source_type === 'group') {
+                        return (int) ($rule->source_group_id ?? 0) === (int) $participant->assignment_source_id;
+                    }
+
+                    return false;
+                });
+
+                $bonus = (int) ($matchingRule?->bonus_score ?? 0);
+            }
+
+            $baseline = max(0, $defaultScore + $bonus);
+            $scoreRow = $scores->get($slot);
+
+            if ($scoreRow) {
+                $scoreRow->update(['score' => $baseline]);
+                continue;
+            }
+
+            $round->scores()->create([
+                'slot' => $slot,
+                'score' => $baseline,
+            ]);
+        }
     }
 }

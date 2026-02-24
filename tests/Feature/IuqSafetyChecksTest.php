@@ -99,7 +99,7 @@ class IuqSafetyChecksTest extends TestCase
         $this->assertTrue($admin->last_seen_at->greaterThan(now()->subMinutes(2)));
     }
 
-    public function test_clear_resets_scores_to_round_default_score_and_draft_state(): void
+    public function test_clear_resets_scores_to_default_or_bonus_baseline_and_resets_to_draft_lightning_state(): void
     {
         $superAdmin = User::factory()->create([
             'role' => User::ROLE_SUPER_ADMIN,
@@ -628,5 +628,102 @@ class IuqSafetyChecksTest extends TestCase
             ->get();
 
         $this->assertCount(1, $blockedLogs);
+    }
+
+    public function test_clear_uses_default_plus_bonus_for_auto_assigned_slots(): void
+    {
+        $superAdmin = User::factory()->create([
+            'role' => User::ROLE_SUPER_ADMIN,
+            'approved_at' => now(),
+        ]);
+
+        $tournament = Tournament::query()->create([
+            'name' => 'Clear Bonus Baseline',
+            'year' => 2031,
+            'status' => 'draft',
+            'timezone' => 'UTC',
+        ]);
+
+        $team = Team::query()->create([
+            'university_name' => 'Cambridge',
+            'team_name' => 'Cam 1',
+        ]);
+
+        $sourceRound = Round::query()->create([
+            'tournament_id' => $tournament->id,
+            'name' => 'Source',
+            'teams_per_round' => 3,
+            'default_score' => 100,
+            'status' => 'completed',
+            'phase' => 'buzzer_normal',
+            'score_deltas' => [20, 10, -10],
+            'sort_order' => 1,
+        ]);
+
+        $targetRound = Round::query()->create([
+            'tournament_id' => $tournament->id,
+            'name' => 'Target',
+            'teams_per_round' => 3,
+            'default_score' => 120,
+            'status' => 'live',
+            'phase' => 'buzzer_normal',
+            'score_deltas' => [20, 10, -10],
+            'sort_order' => 2,
+        ]);
+
+        for ($slot = 1; $slot <= 3; $slot++) {
+            $sourceRound->participants()->create(['slot' => $slot]);
+            $sourceRound->scores()->create(['slot' => $slot, 'score' => 100]);
+            $targetRound->participants()->create([
+                'slot' => $slot,
+                'team_id' => null,
+                'assignment_mode' => 'manual',
+            ]);
+            $targetRound->scores()->create([
+                'slot' => $slot,
+                'score' => 999,
+            ]);
+        }
+
+        $result = RoundResult::query()->create([
+            'round_id' => $sourceRound->id,
+            'finalized_by_user_id' => $superAdmin->id,
+            'finalized_at' => now(),
+            'is_overridden' => false,
+            'is_stale' => false,
+        ]);
+        $result->entries()->create([
+            'slot' => 1,
+            'team_id' => $team->id,
+            'display_name_snapshot' => 'Cam 1',
+            'score' => 220,
+            'rank' => 1,
+        ]);
+
+        AdvancementRule::query()->create([
+            'tournament_id' => $tournament->id,
+            'source_type' => 'round',
+            'source_round_id' => $sourceRound->id,
+            'source_rank' => 1,
+            'action_type' => 'advance',
+            'target_round_id' => $targetRound->id,
+            'target_slot' => 1,
+            'bonus_score' => 25,
+            'priority' => 0,
+            'is_active' => true,
+            'created_by_user_id' => $superAdmin->id,
+        ]);
+
+        // Target is live, so bonus is blocked at advance-time, but participant auto-assignment still occurs.
+        app(AdvancementEngine::class)->recomputeFromRound($sourceRound, $superAdmin, false, false);
+
+        $this->actingAs($superAdmin)
+            ->post(route('control.round.action', $targetRound), ['action' => 'clear'])
+            ->assertRedirect();
+
+        $targetRound->refresh();
+        $this->assertSame('draft', $targetRound->status);
+        $this->assertSame('lightning', $targetRound->phase);
+        $this->assertEquals([145, 120, 120], $targetRound->scores()->orderBy('slot')->pluck('score')->all());
     }
 }
