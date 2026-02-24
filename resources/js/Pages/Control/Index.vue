@@ -10,6 +10,7 @@ const props = defineProps({
     rounds: Array,
     selectedTournamentId: Number,
     selectedRound: Object,
+    bonusIndicatorsBySlot: Object,
 });
 
 const { t } = useI18n();
@@ -207,6 +208,32 @@ const statusLabel = (status) => {
     if (status === 'completed') return t('statusCompleted');
     return status;
 };
+
+const bonusIndicatorForSlot = (slot) => props.bonusIndicatorsBySlot?.[slot] || null;
+const bonusIndicatorClass = (indicator) => {
+    if (!indicator) return '';
+    if (indicator.status === 'bonus_applied') {
+        return 'border-emerald-200 bg-emerald-50 text-emerald-700';
+    }
+    return 'border-orange-200 bg-orange-50 text-orange-700';
+};
+const bonusIndicatorText = (slot) => {
+    const indicator = bonusIndicatorForSlot(slot);
+    if (!indicator) return '';
+
+    const bonus = Number(indicator.context?.bonus_score || 0);
+    const formattedBonus = `${bonus > 0 ? '+' : ''}${bonus}`;
+
+    if (indicator.status === 'bonus_applied') {
+        const after = indicator.context?.score_after;
+        return after !== undefined && after !== null
+            ? t('bonusIndicatorAppliedWithScore', { bonus: formattedBonus, score: after })
+            : t('bonusIndicatorApplied', { bonus: formattedBonus });
+    }
+
+    const roundState = indicator.context?.target_round_status || '';
+    return t('bonusIndicatorBlocked', { bonus: formattedBonus, status: roundState });
+};
 </script>
 
 <template>
@@ -294,6 +321,13 @@ const statusLabel = (status) => {
                             <td class="border px-2 py-1">{{ participant.display_name_snapshot || `${t('team')} ${participant.slot}` }}</td>
                             <td class="border px-2 py-1 text-center text-xl">{{ scoreMap[participant.slot] || 0 }}</td>
                             <td class="border px-2 py-1">
+                                <div
+                                    v-if="bonusIndicatorForSlot(participant.slot)"
+                                    class="mb-2 inline-flex rounded border px-2 py-0.5 text-xs"
+                                    :class="bonusIndicatorClass(bonusIndicatorForSlot(participant.slot))"
+                                >
+                                    {{ bonusIndicatorText(participant.slot) }}
+                                </div>
                                 <div class="flex flex-wrap gap-2">
                                     <button
                                         v-for="delta in currentDeltas"

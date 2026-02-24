@@ -80,6 +80,7 @@ const ruleForm = useForm({
     action_type: 'advance',
     target_round_id: '',
     target_slot: '',
+    bonus_score: 0,
     priority: 0,
     is_active: true,
 });
@@ -326,15 +327,17 @@ const createAdvancementRule = () => {
         source_round_id: data.source_type === 'round' ? (data.source_round_id || null) : null,
         target_round_id: data.action_type === 'advance' ? (data.target_round_id || null) : null,
         target_slot: data.action_type === 'advance' ? (data.target_slot ? Number(data.target_slot) : null) : null,
+        bonus_score: data.action_type === 'advance' ? Number(data.bonus_score || 0) : 0,
         source_rank: Number(data.source_rank),
         priority: Number(data.priority || 0),
     })).post(route('admin.advancement-rules.store', props.tournament.id), {
         preserveScroll: true,
         onSuccess: () => {
-            ruleForm.reset('source_group_id', 'source_round_id', 'source_rank', 'target_round_id', 'target_slot', 'priority');
+            ruleForm.reset('source_group_id', 'source_round_id', 'source_rank', 'target_round_id', 'target_slot', 'bonus_score', 'priority');
             ruleForm.source_type = 'group';
             ruleForm.action_type = 'advance';
             ruleForm.source_rank = 1;
+            ruleForm.bonus_score = 0;
             ruleForm.priority = 0;
             ruleForm.is_active = true;
         },
@@ -363,11 +366,13 @@ const sourceNameLabel = (rule) => rule.source_type === 'group'
     : (rule.source_round?.name || t('unknownRound'));
 const actionLabel = (rule) => rule.action_type === 'eliminate'
     ? t('eliminate')
-    : `${t('advanceTo')} ${rule.target_round?.name || t('unknownRound')} / ${t('slot')} ${rule.target_slot ?? '-'}`;
+    : `${t('advanceTo')} ${rule.target_round?.name || t('unknownRound')} / ${t('slot')} ${rule.target_slot ?? '-'}${Number(rule.bonus_score || 0) ? ` (${t('bonus')}: ${Number(rule.bonus_score) > 0 ? '+' : ''}${Number(rule.bonus_score)})` : ''}`;
 
 const statusDisplayMap = {
     applied: { label: t('autoAdvanced'), class: 'border-green-200 bg-green-50 text-green-700' },
+    bonus_applied: { label: t('bonusApplied'), class: 'border-emerald-200 bg-emerald-50 text-emerald-700' },
     blocked_manual: { label: t('blockedManualLock'), class: 'border-amber-200 bg-amber-50 text-amber-700' },
+    blocked_round_state: { label: t('blockedRoundState'), class: 'border-orange-200 bg-orange-50 text-orange-700' },
     skipped: { label: t('skipped'), class: 'border-gray-200 bg-gray-50 text-gray-700' },
     eliminated: { label: t('eliminated'), class: 'border-red-200 bg-red-50 text-red-700' },
     stale_marked: { label: t('markedStale'), class: 'border-orange-200 bg-orange-50 text-orange-700' },
@@ -794,6 +799,11 @@ const logTeamChange = (log) => `${log.before_team?.team_name || t('noTeam')} -> 
                             <div class="mb-1 text-sm font-medium text-gray-700">{{ t('targetSlot') }}</div>
                             <input v-model="ruleForm.target_slot" type="number" min="1" class="w-full rounded border px-2 py-1" />
                         </label>
+                        <label class="block" v-if="ruleForm.action_type === 'advance'">
+                            <div class="mb-1 text-sm font-medium text-gray-700">{{ t('grantBonusScore') }}</div>
+                            <input v-model="ruleForm.bonus_score" type="number" class="w-full rounded border px-2 py-1" />
+                            <div class="mt-1 text-xs text-gray-500">{{ t('grantBonusScoreHint') }}</div>
+                        </label>
                         <label class="block">
                             <div class="mb-1 text-sm font-medium text-gray-700">{{ t('priority') }}</div>
                             <input v-model="ruleForm.priority" type="number" min="0" class="w-full rounded border px-2 py-1" />
@@ -816,6 +826,7 @@ const logTeamChange = (log) => `${log.before_team?.team_name || t('noTeam')} -> 
                                 <th class="border px-2 py-1 text-left">{{ t('source') }}</th>
                                 <th class="border px-2 py-1 text-left">{{ t('rank') }}</th>
                                 <th class="border px-2 py-1 text-left">{{ t('action') }}</th>
+                                <th class="border px-2 py-1 text-left">{{ t('bonus') }}</th>
                                 <th class="border px-2 py-1 text-left">{{ t('priority') }}</th>
                                 <th class="border px-2 py-1 text-left">{{ t('active') }}</th>
                                 <th v-if="isSuperAdmin" class="border px-2 py-1 text-left">{{ t('actions') }}</th>
@@ -826,6 +837,19 @@ const logTeamChange = (log) => `${log.before_team?.team_name || t('noTeam')} -> 
                                 <td class="border px-2 py-1">{{ sourceTypeLabel(rule) }}: {{ sourceNameLabel(rule) }}</td>
                                 <td class="border px-2 py-1">{{ rule.source_rank }}</td>
                                 <td class="border px-2 py-1">{{ actionLabel(rule) }}</td>
+                                <td class="border px-2 py-1">
+                                    <template v-if="rule.action_type === 'advance'">
+                                        <input
+                                            v-if="isSuperAdmin"
+                                            :value="Number(rule.bonus_score || 0)"
+                                            type="number"
+                                            class="w-24 rounded border px-2 py-1"
+                                            @change="updateAdvancementRule(rule, { bonus_score: Number($event.target.value || 0) })"
+                                        />
+                                        <span v-else>{{ Number(rule.bonus_score || 0) }}</span>
+                                    </template>
+                                    <span v-else>-</span>
+                                </td>
                                 <td class="border px-2 py-1">
                                     <input
                                         v-if="isSuperAdmin"

@@ -16,6 +16,7 @@ class AdvancementRule extends Model
         'action_type',
         'target_round_id',
         'target_slot',
+        'bonus_score',
         'is_active',
         'priority',
         'created_by_user_id',
@@ -25,6 +26,7 @@ class AdvancementRule extends Model
     {
         return [
             'is_active' => 'boolean',
+            'bonus_score' => 'integer',
         ];
     }
 

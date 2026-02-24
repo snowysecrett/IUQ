@@ -451,6 +451,29 @@ class AdvancementEngine
                 } catch (QueryException) {
                     // Another transaction created this score row first.
                 }
+
+                $score = RoundScore::query()
+                    ->where('round_id', $targetRound->id)
+                    ->where('slot', (int) $rule->target_slot)
+                    ->lockForUpdate()
+                    ->first();
+            }
+
+            if ($score) {
+                $this->applyAdvanceBonusForTargetSlot(
+                    tournamentId: $tournamentId,
+                    rule: $rule,
+                    actor: $actor,
+                    sourceType: $sourceType,
+                    sourceRoundId: $sourceRoundId,
+                    sourceGroupId: $sourceGroupId,
+                    targetRound: $targetRound,
+                    targetSlot: (int) $rule->target_slot,
+                    teamId: (int) $team->id,
+                    score: $score,
+                    dueToOverride: $dueToOverride,
+                    forceApply: $forceApply,
+                );
             }
 
             $this->log(
@@ -471,6 +494,7 @@ class AdvancementEngine
                     'force_apply' => $forceApply,
                     'source_rank' => (int) $rule->source_rank,
                     'target_round_name' => $targetRound->name,
+                    'bonus_score' => (int) ($rule->bonus_score ?? 0),
                 ],
             );
 
@@ -635,5 +659,141 @@ class AdvancementEngine
             'message' => $message,
             'context' => $context,
         ]);
+    }
+
+    private function applyAdvanceBonusForTargetSlot(
+        int $tournamentId,
+        AdvancementRule $rule,
+        ?User $actor,
+        string $sourceType,
+        ?int $sourceRoundId,
+        ?int $sourceGroupId,
+        Round $targetRound,
+        int $targetSlot,
+        int $teamId,
+        RoundScore $score,
+        bool $dueToOverride,
+        bool $forceApply,
+    ): void {
+        $bonusScore = (int) ($rule->bonus_score ?? 0);
+        $defaultScore = (int) ($targetRound->default_score ?? 100);
+        $expectedScore = $defaultScore + $bonusScore;
+
+        if ($targetRound->status !== 'draft') {
+            if ($bonusScore !== 0) {
+                $message = sprintf(
+                    'Bonus blocked because target round is %s (bonus %+d).',
+                    $targetRound->status,
+                    $bonusScore,
+                );
+
+                $this->logBonusDecisionOnce(
+                    tournamentId: $tournamentId,
+                    rule: $rule,
+                    actor: $actor,
+                    sourceType: $sourceType,
+                    sourceRoundId: $sourceRoundId,
+                    sourceGroupId: $sourceGroupId,
+                    targetRoundId: $targetRound->id,
+                    targetSlot: $targetSlot,
+                    teamId: $teamId,
+                    status: 'blocked_round_state',
+                    message: $message,
+                    context: [
+                        'bonus_score' => $bonusScore,
+                        'target_round_status' => $targetRound->status,
+                        'due_to_override' => $dueToOverride,
+                        'force_apply' => $forceApply,
+                    ],
+                );
+            }
+
+            return;
+        }
+
+        $beforeScore = (int) $score->score;
+        if ($beforeScore === $expectedScore) {
+            return;
+        }
+
+        $score->update(['score' => $expectedScore]);
+
+        $message = sprintf(
+            'Target round slot score set to default + bonus (%d %+d = %d).',
+            $defaultScore,
+            $bonusScore,
+            $expectedScore,
+        );
+
+        $this->log(
+            tournamentId: $tournamentId,
+            rule: $rule,
+            actor: $actor,
+            sourceType: $sourceType,
+            sourceRoundId: $sourceRoundId,
+            sourceGroupId: $sourceGroupId,
+            targetRoundId: $targetRound->id,
+            targetSlot: $targetSlot,
+            beforeTeamId: $teamId,
+            afterTeamId: $teamId,
+            status: 'bonus_applied',
+            message: $message,
+            context: [
+                'bonus_score' => $bonusScore,
+                'score_before' => $beforeScore,
+                'score_after' => $expectedScore,
+                'target_round_status' => $targetRound->status,
+                'due_to_override' => $dueToOverride,
+                'force_apply' => $forceApply,
+            ],
+        );
+    }
+
+    private function logBonusDecisionOnce(
+        int $tournamentId,
+        AdvancementRule $rule,
+        ?User $actor,
+        string $sourceType,
+        ?int $sourceRoundId,
+        ?int $sourceGroupId,
+        int $targetRoundId,
+        int $targetSlot,
+        int $teamId,
+        string $status,
+        string $message,
+        array $context = [],
+    ): void {
+        $exists = AdvancementLog::query()
+            ->where('tournament_id', $tournamentId)
+            ->where('rule_id', $rule->id)
+            ->where('source_type', $sourceType)
+            ->where('source_round_id', $sourceRoundId)
+            ->where('source_group_id', $sourceGroupId)
+            ->where('target_round_id', $targetRoundId)
+            ->where('target_slot', $targetSlot)
+            ->where('team_id_after', $teamId)
+            ->where('status', $status)
+            ->where('message', $message)
+            ->exists();
+
+        if ($exists) {
+            return;
+        }
+
+        $this->log(
+            tournamentId: $tournamentId,
+            rule: $rule,
+            actor: $actor,
+            sourceType: $sourceType,
+            sourceRoundId: $sourceRoundId,
+            sourceGroupId: $sourceGroupId,
+            targetRoundId: $targetRoundId,
+            targetSlot: $targetSlot,
+            beforeTeamId: $teamId,
+            afterTeamId: $teamId,
+            status: $status,
+            message: $message,
+            context: $context,
+        );
     }
 }

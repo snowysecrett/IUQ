@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Events\RoundUpdated;
+use App\Models\AdvancementLog;
 use App\Models\Round;
 use App\Models\RoundAction;
 use App\Models\RoundResult;
@@ -34,6 +35,7 @@ class ControlController extends Controller
 
         $rounds = collect();
         $selectedRound = null;
+        $bonusIndicatorsBySlot = [];
 
         if ($selectedTournament) {
             $rounds = $selectedTournament->rounds()->orderBy('sort_order')->orderBy('id')->get();
@@ -44,6 +46,24 @@ class ControlController extends Controller
             if (!$selectedRound && $rounds->isNotEmpty()) {
                 $selectedRound = $selectedTournament->rounds()->with(['participants', 'scores', 'result.entries'])->find($rounds->first()->id);
             }
+
+            if ($selectedRound) {
+                $bonusIndicatorsBySlot = AdvancementLog::query()
+                    ->where('target_round_id', $selectedRound->id)
+                    ->whereIn('status', ['bonus_applied', 'blocked_round_state'])
+                    ->orderByDesc('id')
+                    ->get()
+                    ->unique('target_slot')
+                    ->mapWithKeys(function (AdvancementLog $log) {
+                        return [(int) $log->target_slot => [
+                            'status' => $log->status,
+                            'message' => $log->message,
+                            'context' => $log->context ?? [],
+                            'created_at' => $log->created_at?->toISOString(),
+                        ]];
+                    })
+                    ->all();
+            }
         }
 
         return Inertia::render('Control/Index', [
@@ -51,6 +71,7 @@ class ControlController extends Controller
             'rounds' => $rounds,
             'selectedTournamentId' => $selectedTournament?->id,
             'selectedRound' => $selectedRound,
+            'bonusIndicatorsBySlot' => $bonusIndicatorsBySlot,
         ]);
     }
 

@@ -24,6 +24,7 @@ class AdvancementRuleController extends Controller
             'action_type' => ['required', Rule::in(['advance', 'eliminate'])],
             'target_round_id' => ['nullable', Rule::exists('rounds', 'id')->where('tournament_id', $tournament->id)],
             'target_slot' => ['nullable', 'integer', 'min:1'],
+            'bonus_score' => ['nullable', 'integer'],
             'priority' => ['nullable', 'integer', 'min:0'],
             'is_active' => ['nullable', 'boolean'],
         ]);
@@ -43,6 +44,7 @@ class AdvancementRuleController extends Controller
         if ($data['action_type'] === 'eliminate') {
             $data['target_round_id'] = null;
             $data['target_slot'] = null;
+            $data['bonus_score'] = 0;
         }
 
         AdvancementRule::query()->create([
@@ -54,6 +56,7 @@ class AdvancementRuleController extends Controller
             'action_type' => $data['action_type'],
             'target_round_id' => $data['target_round_id'] ?? null,
             'target_slot' => $data['target_slot'] ?? null,
+            'bonus_score' => (int) ($data['bonus_score'] ?? 0),
             'priority' => $data['priority'] ?? 0,
             'is_active' => $data['is_active'] ?? true,
             'created_by_user_id' => $request->user()?->id,
@@ -72,11 +75,17 @@ class AdvancementRuleController extends Controller
             'action_type' => ['nullable', Rule::in(['advance', 'eliminate'])],
             'target_round_id' => ['nullable', Rule::exists('rounds', 'id')->where('tournament_id', $advancementRule->tournament_id)],
             'target_slot' => ['nullable', 'integer', 'min:1'],
+            'bonus_score' => ['nullable', 'integer'],
         ]);
 
         if (($data['action_type'] ?? $advancementRule->action_type) === 'eliminate') {
             $data['target_round_id'] = null;
             $data['target_slot'] = null;
+            $data['bonus_score'] = 0;
+        }
+
+        if (array_key_exists('bonus_score', $data)) {
+            $data['bonus_score'] = (int) ($data['bonus_score'] ?? 0);
         }
 
         $advancementRule->update($data);

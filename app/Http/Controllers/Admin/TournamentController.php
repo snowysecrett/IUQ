@@ -271,6 +271,7 @@ class TournamentController extends Controller
                     'action_type' => $rule->action_type,
                     'target_round_id' => $rule->target_round_id ? ($roundMap[$rule->target_round_id] ?? null) : null,
                     'target_slot' => $rule->target_slot,
+                    'bonus_score' => (int) ($rule->bonus_score ?? 0),
                     'is_active' => $rule->is_active,
                     'priority' => $rule->priority,
                     'created_by_user_id' => $request->user()?->id,

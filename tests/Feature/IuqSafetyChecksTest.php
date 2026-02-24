@@ -11,6 +11,7 @@ use App\Models\RoundTemplate;
 use App\Models\Team;
 use App\Models\Tournament;
 use App\Models\User;
+use App\Services\AdvancementEngine;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -306,6 +307,7 @@ class IuqSafetyChecksTest extends TestCase
             'action_type' => 'advance',
             'target_round_id' => $round->id,
             'target_slot' => 1,
+            'bonus_score' => 25,
             'is_active' => true,
             'priority' => 0,
             'created_by_user_id' => $superAdmin->id,
@@ -374,6 +376,7 @@ class IuqSafetyChecksTest extends TestCase
         $clonedRule = $clone->advancementRules()->firstOrFail();
         $this->assertNotNull($clonedRule->source_round_id);
         $this->assertSame($clonedRound->id, $clonedRule->source_round_id);
+        $this->assertSame(25, (int) $clonedRule->bonus_score);
     }
 
     public function test_only_superadmin_can_create_advancement_rules(): void
@@ -433,5 +436,197 @@ class IuqSafetyChecksTest extends TestCase
             ->assertRedirect();
 
         $this->assertSame(1, AdvancementRule::query()->where('tournament_id', $tournament->id)->count());
+    }
+
+    public function test_advancement_bonus_sets_target_draft_score_to_default_plus_bonus_and_replaces_on_override(): void
+    {
+        $superAdmin = User::factory()->create([
+            'role' => User::ROLE_SUPER_ADMIN,
+            'approved_at' => now(),
+        ]);
+
+        $tournament = Tournament::query()->create([
+            'name' => 'Bonus Test',
+            'year' => 2030,
+            'status' => 'draft',
+            'timezone' => 'UTC',
+        ]);
+
+        $teamA = Team::query()->create(['university_name' => 'A', 'team_name' => 'Team A']);
+        $teamB = Team::query()->create(['university_name' => 'B', 'team_name' => 'Team B']);
+
+        $sourceRound = Round::query()->create([
+            'tournament_id' => $tournament->id,
+            'name' => 'Source',
+            'teams_per_round' => 3,
+            'default_score' => 100,
+            'status' => 'completed',
+            'phase' => 'buzzer_normal',
+            'score_deltas' => [20, 10, -10],
+            'sort_order' => 1,
+        ]);
+
+        $targetRound = Round::query()->create([
+            'tournament_id' => $tournament->id,
+            'name' => 'Target',
+            'teams_per_round' => 3,
+            'default_score' => 120,
+            'status' => 'draft',
+            'phase' => 'lightning',
+            'score_deltas' => [20, 10, -10],
+            'sort_order' => 2,
+        ]);
+
+        for ($slot = 1; $slot <= 3; $slot++) {
+            $sourceRound->participants()->create(['slot' => $slot]);
+            $sourceRound->scores()->create(['slot' => $slot, 'score' => 100]);
+            $targetRound->participants()->create(['slot' => $slot]);
+            $targetRound->scores()->create(['slot' => $slot, 'score' => 999]); // should be reset by auto-advance bonus logic
+        }
+
+        $sourceResult = RoundResult::query()->create([
+            'round_id' => $sourceRound->id,
+            'finalized_by_user_id' => $superAdmin->id,
+            'finalized_at' => now(),
+            'is_overridden' => false,
+            'is_stale' => false,
+        ]);
+        $sourceResult->entries()->createMany([
+            ['slot' => 1, 'team_id' => $teamA->id, 'display_name_snapshot' => 'Team A', 'score' => 200, 'rank' => 1],
+            ['slot' => 2, 'team_id' => $teamB->id, 'display_name_snapshot' => 'Team B', 'score' => 190, 'rank' => 2],
+        ]);
+
+        AdvancementRule::query()->create([
+            'tournament_id' => $tournament->id,
+            'source_type' => 'round',
+            'source_round_id' => $sourceRound->id,
+            'source_rank' => 1,
+            'action_type' => 'advance',
+            'target_round_id' => $targetRound->id,
+            'target_slot' => 1,
+            'bonus_score' => 30,
+            'priority' => 0,
+            'is_active' => true,
+            'created_by_user_id' => $superAdmin->id,
+        ]);
+
+        app(AdvancementEngine::class)->recomputeFromRound($sourceRound, $superAdmin, false, false);
+
+        $targetParticipant = $targetRound->participants()->where('slot', 1)->firstOrFail();
+        $targetScore = $targetRound->scores()->where('slot', 1)->firstOrFail();
+
+        $this->assertSame($teamA->id, $targetParticipant->team_id);
+        $this->assertSame(150, (int) $targetScore->score); // 120 default + 30 bonus
+        $this->assertDatabaseHas('advancement_logs', [
+            'tournament_id' => $tournament->id,
+            'target_round_id' => $targetRound->id,
+            'target_slot' => 1,
+            'status' => 'bonus_applied',
+        ]);
+
+        // Override source winner to Team B; target score should still be reset to default + bonus.
+        $entry = $sourceResult->entries()->where('slot', 1)->firstOrFail();
+        $entry->update([
+            'team_id' => $teamB->id,
+            'display_name_snapshot' => 'Team B',
+            'score' => 210,
+            'rank' => 1,
+        ]);
+
+        app(AdvancementEngine::class)->recomputeFromRound($sourceRound->fresh(), $superAdmin, true, false);
+
+        $targetParticipant->refresh();
+        $targetScore->refresh();
+        $this->assertSame($teamB->id, $targetParticipant->team_id);
+        $this->assertSame(150, (int) $targetScore->score);
+    }
+
+    public function test_advancement_bonus_on_live_or_completed_target_is_blocked_and_logged_once(): void
+    {
+        $superAdmin = User::factory()->create([
+            'role' => User::ROLE_SUPER_ADMIN,
+            'approved_at' => now(),
+        ]);
+
+        $tournament = Tournament::query()->create([
+            'name' => 'Bonus Blocked Test',
+            'year' => 2030,
+            'status' => 'draft',
+            'timezone' => 'UTC',
+        ]);
+
+        $team = Team::query()->create(['university_name' => 'A', 'team_name' => 'Team A']);
+
+        $sourceRound = Round::query()->create([
+            'tournament_id' => $tournament->id,
+            'name' => 'Source',
+            'teams_per_round' => 3,
+            'default_score' => 100,
+            'status' => 'completed',
+            'phase' => 'buzzer_normal',
+            'score_deltas' => [20, 10, -10],
+            'sort_order' => 1,
+        ]);
+
+        $targetRound = Round::query()->create([
+            'tournament_id' => $tournament->id,
+            'name' => 'Target',
+            'teams_per_round' => 3,
+            'default_score' => 100,
+            'status' => 'live',
+            'phase' => 'lightning',
+            'score_deltas' => [20, 10, -10],
+            'sort_order' => 2,
+        ]);
+
+        for ($slot = 1; $slot <= 3; $slot++) {
+            $sourceRound->participants()->create(['slot' => $slot]);
+            $sourceRound->scores()->create(['slot' => $slot, 'score' => 100]);
+            $targetRound->participants()->create(['slot' => $slot]);
+            $targetRound->scores()->create(['slot' => $slot, 'score' => 777]);
+        }
+
+        $result = RoundResult::query()->create([
+            'round_id' => $sourceRound->id,
+            'finalized_by_user_id' => $superAdmin->id,
+            'finalized_at' => now(),
+            'is_overridden' => false,
+            'is_stale' => false,
+        ]);
+        $result->entries()->create([
+            'slot' => 1,
+            'team_id' => $team->id,
+            'display_name_snapshot' => 'Team A',
+            'score' => 200,
+            'rank' => 1,
+        ]);
+
+        AdvancementRule::query()->create([
+            'tournament_id' => $tournament->id,
+            'source_type' => 'round',
+            'source_round_id' => $sourceRound->id,
+            'source_rank' => 1,
+            'action_type' => 'advance',
+            'target_round_id' => $targetRound->id,
+            'target_slot' => 1,
+            'bonus_score' => -10,
+            'priority' => 0,
+            'is_active' => true,
+            'created_by_user_id' => $superAdmin->id,
+        ]);
+
+        app(AdvancementEngine::class)->recomputeFromRound($sourceRound, $superAdmin, false, false);
+        app(AdvancementEngine::class)->recomputeFromRound($sourceRound->fresh(), $superAdmin, false, false);
+
+        $this->assertSame(777, (int) $targetRound->scores()->where('slot', 1)->firstOrFail()->score);
+
+        $blockedLogs = AdvancementLog::query()
+            ->where('tournament_id', $tournament->id)
+            ->where('target_round_id', $targetRound->id)
+            ->where('target_slot', 1)
+            ->where('status', 'blocked_round_state')
+            ->get();
+
+        $this->assertCount(1, $blockedLogs);
     }
 }
