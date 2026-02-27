@@ -19,6 +19,11 @@ const isUsingRoundTemplate = computed(() => !!roundForm.round_template_id);
 const roundCreateSuccessMessage = ref('');
 const roundExpandedState = ref({});
 const advancementRulesExpanded = ref(false);
+const advancementRuleFilters = ref({
+    source_type: '',
+    action_type: '',
+    active_state: '',
+});
 
 const isTemplateModalOpen = ref(false);
 
@@ -155,6 +160,25 @@ const isRoundExpanded = (roundId) => !!roundExpandedState.value[roundId];
 const toggleRoundExpanded = (roundId) => {
     roundExpandedState.value[roundId] = !roundExpandedState.value[roundId];
 };
+
+const filteredAdvancementRules = computed(() => {
+    return (props.tournament.advancement_rules || []).filter((rule) => {
+        if (advancementRuleFilters.value.source_type && rule.source_type !== advancementRuleFilters.value.source_type) {
+            return false;
+        }
+        if (advancementRuleFilters.value.action_type && rule.action_type !== advancementRuleFilters.value.action_type) {
+            return false;
+        }
+        if (advancementRuleFilters.value.active_state === 'active' && !rule.is_active) {
+            return false;
+        }
+        if (advancementRuleFilters.value.active_state === 'inactive' && rule.is_active) {
+            return false;
+        }
+
+        return true;
+    });
+});
 
 const updateTournament = () => {
     tournamentForm.patch(route('admin.tournaments.update', props.tournament.id), {
@@ -823,8 +847,37 @@ const logTeamChange = (log) => `${log.before_team?.team_name || t('noTeam')} -> 
                     </button>
                 </div>
                 <div v-if="advancementRulesExpanded">
+                    <div class="mb-3 grid gap-2 md:grid-cols-3">
+                        <label class="block">
+                            <div class="mb-1 text-xs font-medium text-gray-600">{{ t('filterSourceType') }}</div>
+                            <select v-model="advancementRuleFilters.source_type" class="w-full rounded border px-2 py-1 text-sm">
+                                <option value="">{{ t('allOption') }}</option>
+                                <option value="group">{{ t('groupBased') }}</option>
+                                <option value="round">{{ t('roundBased') }}</option>
+                            </select>
+                        </label>
+                        <label class="block">
+                            <div class="mb-1 text-xs font-medium text-gray-600">{{ t('filterAction') }}</div>
+                            <select v-model="advancementRuleFilters.action_type" class="w-full rounded border px-2 py-1 text-sm">
+                                <option value="">{{ t('allOption') }}</option>
+                                <option value="advance">{{ t('advanceToAnotherRoundSlot') }}</option>
+                                <option value="eliminate">{{ t('eliminate') }}</option>
+                            </select>
+                        </label>
+                        <label class="block">
+                            <div class="mb-1 text-xs font-medium text-gray-600">{{ t('filterActive') }}</div>
+                            <select v-model="advancementRuleFilters.active_state" class="w-full rounded border px-2 py-1 text-sm">
+                                <option value="">{{ t('allOption') }}</option>
+                                <option value="active">{{ t('activeOnly') }}</option>
+                                <option value="inactive">{{ t('inactiveOnly') }}</option>
+                            </select>
+                        </label>
+                    </div>
                     <div v-if="tournament.advancement_rules.length === 0" class="rounded border bg-gray-50 p-3 text-sm text-gray-600">
                         {{ t('noAdvancementRulesYet') }}
+                    </div>
+                    <div v-else-if="filteredAdvancementRules.length === 0" class="rounded border bg-gray-50 p-3 text-sm text-gray-600">
+                        {{ t('noRulesMatchFilters') }}
                     </div>
                     <div v-else class="overflow-auto rounded border">
                         <table class="min-w-full text-sm">
@@ -840,7 +893,7 @@ const logTeamChange = (log) => `${log.before_team?.team_name || t('noTeam')} -> 
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="rule in tournament.advancement_rules" :key="rule.id">
+                                <tr v-for="rule in filteredAdvancementRules" :key="rule.id">
                                     <td class="border px-2 py-1">{{ sourceTypeLabel(rule) }}: {{ sourceNameLabel(rule) }}</td>
                                     <td class="border px-2 py-1">{{ rule.source_rank }}</td>
                                     <td class="border px-2 py-1">{{ actionLabel(rule) }}</td>
