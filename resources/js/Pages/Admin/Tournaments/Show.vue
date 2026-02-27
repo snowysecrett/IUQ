@@ -18,6 +18,7 @@ const isSuperAdmin = computed(() => page.props.auth?.user?.role === 'super_admin
 const isUsingRoundTemplate = computed(() => !!roundForm.round_template_id);
 const roundCreateSuccessMessage = ref('');
 const roundExpandedState = ref({});
+const advancementRulesExpanded = ref(false);
 
 const isTemplateModalOpen = ref(false);
 
@@ -815,74 +816,81 @@ const logTeamChange = (log) => `${log.before_team?.team_name || t('noTeam')} -> 
             </form>
 
             <div class="rounded border bg-white p-4">
-                <h2 class="mb-2 font-semibold">{{ t('currentRules') }}</h2>
-                <div v-if="tournament.advancement_rules.length === 0" class="rounded border bg-gray-50 p-3 text-sm text-gray-600">
-                    {{ t('noAdvancementRulesYet') }}
+                <div class="mb-2 flex items-center justify-between">
+                    <h2 class="font-semibold">{{ t('currentRules') }} ({{ tournament.advancement_rules.length }})</h2>
+                    <button class="rounded border px-2 py-1 text-xs" @click="advancementRulesExpanded = !advancementRulesExpanded">
+                        {{ advancementRulesExpanded ? t('collapse') : t('expand') }}
+                    </button>
                 </div>
-                <div v-else class="overflow-auto rounded border">
-                    <table class="min-w-full text-sm">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="border px-2 py-1 text-left">{{ t('source') }}</th>
-                                <th class="border px-2 py-1 text-left">{{ t('rank') }}</th>
-                                <th class="border px-2 py-1 text-left">{{ t('action') }}</th>
-                                <th class="border px-2 py-1 text-left">{{ t('bonus') }}</th>
-                                <th class="border px-2 py-1 text-left">{{ t('priority') }}</th>
-                                <th class="border px-2 py-1 text-left">{{ t('active') }}</th>
-                                <th v-if="isSuperAdmin" class="border px-2 py-1 text-left">{{ t('actions') }}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="rule in tournament.advancement_rules" :key="rule.id">
-                                <td class="border px-2 py-1">{{ sourceTypeLabel(rule) }}: {{ sourceNameLabel(rule) }}</td>
-                                <td class="border px-2 py-1">{{ rule.source_rank }}</td>
-                                <td class="border px-2 py-1">{{ actionLabel(rule) }}</td>
-                                <td class="border px-2 py-1">
-                                    <template v-if="rule.action_type === 'advance'">
+                <div v-if="advancementRulesExpanded">
+                    <div v-if="tournament.advancement_rules.length === 0" class="rounded border bg-gray-50 p-3 text-sm text-gray-600">
+                        {{ t('noAdvancementRulesYet') }}
+                    </div>
+                    <div v-else class="overflow-auto rounded border">
+                        <table class="min-w-full text-sm">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="border px-2 py-1 text-left">{{ t('source') }}</th>
+                                    <th class="border px-2 py-1 text-left">{{ t('rank') }}</th>
+                                    <th class="border px-2 py-1 text-left">{{ t('action') }}</th>
+                                    <th class="border px-2 py-1 text-left">{{ t('bonus') }}</th>
+                                    <th class="border px-2 py-1 text-left">{{ t('priority') }}</th>
+                                    <th class="border px-2 py-1 text-left">{{ t('active') }}</th>
+                                    <th v-if="isSuperAdmin" class="border px-2 py-1 text-left">{{ t('actions') }}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="rule in tournament.advancement_rules" :key="rule.id">
+                                    <td class="border px-2 py-1">{{ sourceTypeLabel(rule) }}: {{ sourceNameLabel(rule) }}</td>
+                                    <td class="border px-2 py-1">{{ rule.source_rank }}</td>
+                                    <td class="border px-2 py-1">{{ actionLabel(rule) }}</td>
+                                    <td class="border px-2 py-1">
+                                        <template v-if="rule.action_type === 'advance'">
+                                            <input
+                                                v-if="isSuperAdmin"
+                                                :value="Number(rule.bonus_score || 0)"
+                                                type="number"
+                                                class="w-24 rounded border px-2 py-1"
+                                                @change="updateAdvancementRule(rule, { bonus_score: Number($event.target.value || 0) })"
+                                            />
+                                            <span v-else>{{ Number(rule.bonus_score || 0) }}</span>
+                                        </template>
+                                        <span v-else>-</span>
+                                    </td>
+                                    <td class="border px-2 py-1">
                                         <input
                                             v-if="isSuperAdmin"
-                                            :value="Number(rule.bonus_score || 0)"
+                                            :value="rule.priority"
                                             type="number"
-                                            class="w-24 rounded border px-2 py-1"
-                                            @change="updateAdvancementRule(rule, { bonus_score: Number($event.target.value || 0) })"
+                                            min="0"
+                                            class="w-20 rounded border px-2 py-1"
+                                            @change="updateAdvancementRule(rule, { priority: Number($event.target.value || 0) })"
                                         />
-                                        <span v-else>{{ Number(rule.bonus_score || 0) }}</span>
-                                    </template>
-                                    <span v-else>-</span>
-                                </td>
-                                <td class="border px-2 py-1">
-                                    <input
-                                        v-if="isSuperAdmin"
-                                        :value="rule.priority"
-                                        type="number"
-                                        min="0"
-                                        class="w-20 rounded border px-2 py-1"
-                                        @change="updateAdvancementRule(rule, { priority: Number($event.target.value || 0) })"
-                                    />
-                                    <span v-else>{{ rule.priority }}</span>
-                                </td>
-                                <td class="border px-2 py-1">
-                                    <label v-if="isSuperAdmin" class="inline-flex items-center gap-2">
-                                        <input
-                                            type="checkbox"
-                                            :checked="rule.is_active"
-                                            @change="updateAdvancementRule(rule, { is_active: $event.target.checked })"
-                                        />
-                                        <span>{{ rule.is_active ? t('yes') : t('no') }}</span>
-                                    </label>
-                                    <span v-else>{{ rule.is_active ? t('yes') : t('no') }}</span>
-                                </td>
-                                <td v-if="isSuperAdmin" class="border px-2 py-1">
-                                    <button
-                                        class="rounded border border-red-300 px-2 py-1 text-red-700"
-                                        @click="deleteAdvancementRule(rule)"
-                                    >
-                                        {{ t('delete') }}
-                                    </button>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+                                        <span v-else>{{ rule.priority }}</span>
+                                    </td>
+                                    <td class="border px-2 py-1">
+                                        <label v-if="isSuperAdmin" class="inline-flex items-center gap-2">
+                                            <input
+                                                type="checkbox"
+                                                :checked="rule.is_active"
+                                                @change="updateAdvancementRule(rule, { is_active: $event.target.checked })"
+                                            />
+                                            <span>{{ rule.is_active ? t('yes') : t('no') }}</span>
+                                        </label>
+                                        <span v-else>{{ rule.is_active ? t('yes') : t('no') }}</span>
+                                    </td>
+                                    <td v-if="isSuperAdmin" class="border px-2 py-1">
+                                        <button
+                                            class="rounded border border-red-300 px-2 py-1 text-red-700"
+                                            @click="deleteAdvancementRule(rule)"
+                                        >
+                                            {{ t('delete') }}
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
