@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Tournament;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -19,17 +20,31 @@ class TimetableController extends Controller
         if (!in_array($section, ['upcoming', 'live', 'completed'], true)) {
             $section = 'upcoming';
         }
+        $user = $request->user();
+        $canViewAllTournaments = $user && in_array($user->role, [User::ROLE_ADMIN, User::ROLE_SUPER_ADMIN], true);
 
         $tournamentsQuery = Tournament::query()->orderByDesc('year')->orderBy('name');
         if ($year) {
             $tournamentsQuery->where('year', $year);
         }
+        if (!$canViewAllTournaments) {
+            $tournamentsQuery->where('is_publicly_visible', true);
+        }
 
         $tournaments = $tournamentsQuery->get();
 
+        $buildSelectedTournamentQuery = function () use ($canViewAllTournaments) {
+            $query = Tournament::query()->with(['rounds.participants', 'rounds.scores', 'rounds.result.entries']);
+            if (!$canViewAllTournaments) {
+                $query->where('is_publicly_visible', true);
+            }
+
+            return $query;
+        };
+
         $selectedTournament = $tournamentId
-            ? Tournament::query()->with(['rounds.participants', 'rounds.scores', 'rounds.result.entries'])->find($tournamentId)
-            : Tournament::query()->with(['rounds.participants', 'rounds.scores', 'rounds.result.entries'])->live()->first() ?? $tournaments->first();
+            ? $buildSelectedTournamentQuery()->find($tournamentId)
+            : $buildSelectedTournamentQuery()->live()->first() ?? $tournaments->first();
 
         $selectedRounds = collect();
         $sectionRoundCounts = [
@@ -90,7 +105,12 @@ class TimetableController extends Controller
         }
 
         return Inertia::render('Public/Timetable', [
-            'years' => Tournament::query()->select('year')->distinct()->orderByDesc('year')->pluck('year'),
+            'years' => Tournament::query()
+                ->when(!$canViewAllTournaments, fn ($query) => $query->where('is_publicly_visible', true))
+                ->select('year')
+                ->distinct()
+                ->orderByDesc('year')
+                ->pluck('year'),
             'tournaments' => $tournaments,
             'selectedTournament' => $selectedTournament,
             'selectedSection' => $section,

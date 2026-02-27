@@ -16,12 +16,14 @@ class Tournament extends Model
         'scheduled_start_at',
         'timezone',
         'logo_path',
+        'is_publicly_visible',
     ];
 
     protected function casts(): array
     {
         return [
             'scheduled_start_at' => 'datetime',
+            'is_publicly_visible' => 'boolean',
         ];
     }
 

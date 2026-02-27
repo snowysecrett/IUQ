@@ -35,6 +35,7 @@ const tournamentForm = useForm({
     timezone: props.tournament.timezone,
     logo_path: props.tournament.logo_path || '',
     logo_file: null,
+    is_publicly_visible: !!props.tournament.is_publicly_visible,
 });
 
 const addTeamForm = useForm({ team_id: '' });
@@ -445,6 +446,10 @@ const logTeamChange = (log) => `${log.before_team?.team_name || t('noTeam')} -> 
                         <input v-model="tournamentForm.scheduled_start_at" type="datetime-local" class="rounded border px-2 py-1" />
                         <input v-model="tournamentForm.timezone" class="rounded border px-2 py-1" />
                         <input v-model="tournamentForm.logo_path" class="rounded border px-2 py-1" :placeholder="t('logoUrlPath')" />
+                        <label class="inline-flex items-center gap-2 rounded border px-2 py-1 text-sm">
+                            <input v-model="tournamentForm.is_publicly_visible" type="checkbox" />
+                            <span>{{ t('publiclyVisible') }}</span>
+                        </label>
                         <input
                             type="file"
                             accept="image/*"

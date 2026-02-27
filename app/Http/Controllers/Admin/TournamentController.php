@@ -93,6 +93,7 @@ class TournamentController extends Controller
             ...$data,
             'status' => 'draft',
             'timezone' => $data['timezone'] ?? 'UTC',
+            'is_publicly_visible' => false,
         ]);
 
         return redirect()->route('admin.tournaments.show', $tournament)->with('success', 'Tournament created.');
@@ -142,6 +143,7 @@ class TournamentController extends Controller
                 'scheduled_start_at' => $data['scheduled_start_at'] ?? null,
                 'timezone' => $source->timezone ?: 'UTC',
                 'logo_path' => $source->logo_path,
+                'is_publicly_visible' => false,
             ]);
 
             if ($cloneTournamentTeams) {
@@ -277,6 +279,7 @@ class TournamentController extends Controller
             'timezone' => ['nullable', 'string', 'max:100'],
             'logo_path' => ['nullable', 'string', 'max:2048'],
             'logo_file' => ['nullable', 'image', 'max:4096'],
+            'is_publicly_visible' => ['nullable', 'boolean'],
         ]);
 
         if ($data['status'] === 'live') {
@@ -295,6 +298,7 @@ class TournamentController extends Controller
         }
 
         unset($data['logo_file']);
+        $data['is_publicly_visible'] = (bool) ($data['is_publicly_visible'] ?? false);
 
         $tournament->update($data);
 
