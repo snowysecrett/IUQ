@@ -45,7 +45,7 @@ class ControlController extends Controller
             $shouldDeferDefaultRoundSelection = $chooserMode
                 || (
                     ! $roundId
-                && $selectedTournament->status === 'live';
+                    && $selectedTournament->status === 'live'
                 );
 
             if ($roundId) {
