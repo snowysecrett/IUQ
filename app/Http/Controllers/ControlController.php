@@ -27,6 +27,7 @@ class ControlController extends Controller
 
         $tournamentId = $request->integer('tournament_id');
         $roundId = $request->integer('round_id');
+        $hasQueryParams = !empty($request->query());
 
         $tournaments = Tournament::query()->orderByDesc('year')->orderBy('name')->get();
 
@@ -35,17 +36,46 @@ class ControlController extends Controller
             : Tournament::query()->live()->first() ?? $tournaments->first();
 
         $rounds = collect();
+        $suggestedRounds = collect();
         $selectedRound = null;
         $bonusIndicatorsBySlot = [];
 
         if ($selectedTournament) {
             $rounds = $selectedTournament->rounds()->orderBy('sort_order')->orderBy('id')->get();
-            $selectedRound = $roundId
-                ? $selectedTournament->rounds()->with(['participants', 'scores', 'result.entries'])->find($roundId)
-                : $selectedTournament->rounds()->with(['participants', 'scores', 'result.entries'])->where('status', 'live')->first();
+            $shouldDeferDefaultRoundSelection = ! $hasQueryParams
+                && ! $roundId
+                && $selectedTournament->status === 'live';
+
+            if ($roundId) {
+                $selectedRound = $selectedTournament->rounds()->with(['participants', 'scores', 'result.entries'])->find($roundId);
+            } elseif (! $shouldDeferDefaultRoundSelection) {
+                $selectedRound = $selectedTournament->rounds()->with(['participants', 'scores', 'result.entries'])->where('status', 'live')->first();
+            }
 
             if (!$selectedRound && $rounds->isNotEmpty()) {
-                $selectedRound = $selectedTournament->rounds()->with(['participants', 'scores', 'result.entries'])->find($rounds->first()->id);
+                if ($shouldDeferDefaultRoundSelection) {
+                    $now = now();
+                    $liveRounds = $rounds
+                        ->where('status', 'live')
+                        ->sortBy('id');
+
+                    $draftRounds = $rounds
+                        ->where('status', 'draft')
+                        ->sortBy(function (Round $round) use ($now) {
+                            $distance = $round->scheduled_start_at
+                                ? abs($round->scheduled_start_at->timestamp - $now->timestamp)
+                                : PHP_INT_MAX;
+
+                            return sprintf('%020d-%020d', $distance, $round->id);
+                        });
+
+                    $suggestedRounds = $liveRounds
+                        ->concat($draftRounds)
+                        ->take(4)
+                        ->values();
+                } else {
+                    $selectedRound = $selectedTournament->rounds()->with(['participants', 'scores', 'result.entries'])->find($rounds->first()->id);
+                }
             }
 
             if ($selectedRound) {
@@ -70,6 +100,7 @@ class ControlController extends Controller
         return Inertia::render('Control/Index', [
             'tournaments' => $tournaments,
             'rounds' => $rounds,
+            'suggestedRounds' => $suggestedRounds,
             'selectedTournamentId' => $selectedTournament?->id,
             'selectedRound' => $selectedRound,
             'bonusIndicatorsBySlot' => $bonusIndicatorsBySlot,

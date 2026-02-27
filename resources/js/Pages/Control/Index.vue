@@ -8,6 +8,7 @@ import { statusBadgeClass } from '@/composables/useStatusBadge';
 const props = defineProps({
     tournaments: Array,
     rounds: Array,
+    suggestedRounds: Array,
     selectedTournamentId: Number,
     selectedRound: Object,
     bonusIndicatorsBySlot: Object,
@@ -106,9 +107,19 @@ const selectTournament = (event) => {
 };
 
 const selectRound = (event) => {
+    if (!event.target.value) {
+        return;
+    }
     router.get(route('control.index'), {
         tournament_id: props.selectedTournamentId,
         round_id: event.target.value,
+    }, { preserveState: true });
+};
+
+const goToRound = (roundId) => {
+    router.get(route('control.index'), {
+        tournament_id: props.selectedTournamentId,
+        round_id: roundId,
     }, { preserveState: true });
 };
 
@@ -209,6 +220,20 @@ const statusLabel = (status) => {
     return status;
 };
 
+const formatSchedule = (value) => {
+    if (!value) {
+        return t('noSchedule');
+    }
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return value;
+    }
+
+    const two = (n) => `${n}`.padStart(2, '0');
+    return `${date.getFullYear()}-${two(date.getMonth() + 1)}-${two(date.getDate())} ${two(date.getHours())}:${two(date.getMinutes())}:${two(date.getSeconds())}`;
+};
+
 const bonusIndicatorForSlot = (slot) => {
     const indicator = props.bonusIndicatorsBySlot?.[slot] || null;
     if (!indicator) return null;
@@ -253,11 +278,44 @@ const bonusIndicatorText = (slot) => {
                     {{ tournament.name }} ({{ tournament.year }})
                 </option>
             </select>
-            <select class="rounded border px-2 py-1" :value="selectedRound?.id" @change="selectRound">
+            <select class="rounded border px-2 py-1" :value="selectedRound?.id ?? ''" @change="selectRound">
+                <option value="" disabled>{{ t('selectRoundPrompt') }}</option>
                 <option v-for="round in rounds" :key="round.id" :value="round.id">
                     {{ round.name }}
                 </option>
             </select>
+        </div>
+
+        <div v-if="!selectedRound && (suggestedRounds?.length || 0) > 0" class="mb-4 rounded border bg-white p-4">
+            <div class="mb-2 text-sm font-semibold">{{ t('likelyRounds') }}</div>
+            <div class="overflow-auto rounded border">
+                <table class="min-w-full text-sm">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="border px-2 py-1 text-left">{{ t('round') }}</th>
+                            <th class="border px-2 py-1 text-left">{{ t('status') }}</th>
+                            <th class="border px-2 py-1 text-left">{{ t('scheduled') }}</th>
+                            <th class="border px-2 py-1 text-left">{{ t('actions') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="round in suggestedRounds" :key="`suggest-${round.id}`">
+                            <td class="border px-2 py-1">{{ round.name }}</td>
+                            <td class="border px-2 py-1">
+                                <span class="rounded border px-2 py-0.5" :class="statusBadgeClass(round.status)">
+                                    {{ statusLabel(round.status) }}
+                                </span>
+                            </td>
+                            <td class="border px-2 py-1">{{ formatSchedule(round.scheduled_start_at) }}</td>
+                            <td class="border px-2 py-1">
+                                <button class="rounded border px-2 py-1" @click="goToRound(round.id)">
+                                    {{ t('openRound') }}
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
 
         <div v-if="selectedRound" class="space-y-4">
