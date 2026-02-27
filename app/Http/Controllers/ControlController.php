@@ -42,11 +42,7 @@ class ControlController extends Controller
 
         if ($selectedTournament) {
             $rounds = $selectedTournament->rounds()->orderBy('sort_order')->orderBy('id')->get();
-            $shouldDeferDefaultRoundSelection = $chooserMode
-                || (
-                    ! $roundId
-                    && $selectedTournament->status === 'live'
-                );
+            $shouldDeferDefaultRoundSelection = $chooserMode || ! $roundId;
 
             if ($roundId) {
                 $selectedRound = $selectedTournament->rounds()->with(['participants', 'scores', 'result.entries'])->find($roundId);
