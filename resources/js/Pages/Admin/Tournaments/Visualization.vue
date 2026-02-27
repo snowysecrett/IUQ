@@ -3,13 +3,12 @@ import { Head, Link } from '@inertiajs/vue3';
 import MainLayout from '@/Layouts/MainLayout.vue';
 import { useI18n } from '@/composables/useI18n';
 import { statusBadgeClass } from '@/composables/useStatusBadge';
+import { computed } from 'vue';
 
 const props = defineProps({
     tournament: Object,
-    groupSummaries: Array,
     rules: Array,
     standaloneLinkedRounds: Array,
-    unlinkedRounds: Array,
 });
 
 const { t } = useI18n();
@@ -25,26 +24,160 @@ const sourceTypeLabel = (sourceType) => {
     return sourceType === 'group' ? t('groupBased') : t('roundBased');
 };
 
-const actionLabel = (rule) => {
-    if (rule.action_type === 'eliminate') {
-        return t('eliminate');
-    }
-
-    const bonus = Number(rule.bonus_score || 0);
-    const bonusSuffix = bonus !== 0 ? ` (${t('bonus')} ${bonus > 0 ? '+' : ''}${bonus})` : '';
-    return `${t('advanceToAnotherRoundSlot')}: ${rule.target_label} / ${t('slot')} ${rule.target_slot}${bonusSuffix}`;
+const nodeTypeLabel = (type) => {
+    if (type === 'group') return t('group');
+    if (type === 'round') return t('round');
+    if (type === 'eliminated') return t('eliminate');
+    return type;
 };
 
-const formatSchedule = (value) => {
-    if (!value) {
-        return t('noSchedule');
+const nodeCardClass = (type) => {
+    if (type === 'group') {
+        return 'border-amber-300 bg-amber-50';
     }
-    if (typeof value === 'string' && value.includes('T')) {
-        return value.slice(0, 19).replace('T', ' ');
+    if (type === 'eliminated') {
+        return 'border-rose-300 bg-rose-50';
+    }
+    return 'border-sky-300 bg-sky-50';
+};
+
+const nodeTypeTextClass = (type) => {
+    if (type === 'group') {
+        return 'text-amber-700';
+    }
+    if (type === 'eliminated') {
+        return 'text-rose-700';
+    }
+    return 'text-sky-700';
+};
+
+const tournamentTree = computed(() => {
+    const nodes = new Map();
+    const edges = [];
+
+    const addNode = (key, payload) => {
+        if (!key) return;
+        if (!nodes.has(key)) {
+            nodes.set(key, {
+                key,
+                depth: 0,
+                ...payload,
+            });
+            return;
+        }
+
+        const existing = nodes.get(key);
+        nodes.set(key, {
+            ...existing,
+            ...payload,
+        });
+    };
+
+    (props.standaloneLinkedRounds || []).forEach((round) => {
+        addNode(`round-${round.id}`, {
+            id: round.id,
+            type: 'round',
+            label: round.name,
+        });
+    });
+
+    (props.rules || []).forEach((rule) => {
+        const fromKey = rule.source_type === 'group'
+            ? (rule.source_group_id ? `group-${rule.source_group_id}` : null)
+            : (rule.source_round_id ? `round-${rule.source_round_id}` : null);
+
+        if (fromKey && !nodes.has(fromKey)) {
+            addNode(fromKey, {
+                type: rule.source_type === 'group' ? 'group' : 'round',
+                label: rule.source_label || '-',
+            });
+        }
+
+        const toKey = rule.action_type === 'advance'
+            ? (rule.target_round_id ? `round-${rule.target_round_id}` : null)
+            : 'eliminated';
+
+        if (toKey === 'eliminated') {
+            addNode('eliminated', {
+                type: 'eliminated',
+                label: t('eliminatedNode'),
+            });
+        } else if (toKey && !nodes.has(toKey)) {
+            addNode(toKey, {
+                type: 'round',
+                label: rule.target_label || '-',
+            });
+        }
+
+        if (fromKey && toKey) {
+            edges.push({
+                from: fromKey,
+                to: toKey,
+                sourceRank: rule.source_rank,
+                actionType: rule.action_type,
+                targetSlot: rule.target_slot,
+                bonusScore: Number(rule.bonus_score || 0),
+                active: !!rule.is_active,
+            });
+        }
+    });
+
+    const nodeCount = nodes.size;
+    for (let i = 0; i < nodeCount; i++) {
+        let changed = false;
+        edges.forEach((edge) => {
+            const from = nodes.get(edge.from);
+            const to = nodes.get(edge.to);
+            if (!from || !to) return;
+            const nextDepth = from.depth + 1;
+            if (nextDepth > to.depth) {
+                to.depth = nextDepth;
+                nodes.set(edge.to, to);
+                changed = true;
+            }
+        });
+        if (!changed) break;
     }
 
-    return String(value);
-};
+    const edgeText = (edge) => {
+        if (edge.actionType === 'eliminate') {
+            return `${t('rank')} ${edge.sourceRank}: ${t('eliminate')}`;
+        }
+
+        const bonusText = edge.bonusScore !== 0 ? ` (${t('bonus')} ${edge.bonusScore > 0 ? '+' : ''}${edge.bonusScore})` : '';
+        return `${t('rank')} ${edge.sourceRank} -> ${t('slot')} ${edge.targetSlot}${bonusText}`;
+    };
+
+    const grouped = new Map();
+    nodes.forEach((node) => {
+        if (!grouped.has(node.depth)) grouped.set(node.depth, []);
+
+        const outgoing = edges
+            .filter((edge) => edge.from === node.key)
+            .map((edge) => ({
+                text: edgeText(edge),
+                toLabel: nodes.get(edge.to)?.label || '-',
+                active: edge.active,
+            }));
+
+        grouped.get(node.depth).push({
+            ...node,
+            typeLabel: nodeTypeLabel(node.type),
+            outgoing,
+        });
+    });
+
+    const columns = Array.from(grouped.entries())
+        .sort(([a], [b]) => a - b)
+        .map(([depth, list]) => ({
+            depth,
+            nodes: list.sort((a, b) => a.label.localeCompare(b.label)),
+        }));
+
+    return {
+        columns,
+    };
+});
 </script>
 
 <template>
@@ -66,144 +199,60 @@ const formatSchedule = (value) => {
 
         <div class="space-y-4">
             <div class="rounded border bg-white p-4">
-                <h2 class="mb-2 font-semibold">{{ t('tournamentFlow') }}</h2>
-                <p class="mb-3 text-sm text-gray-600">{{ t('tournamentFlowDescription') }}</p>
-                <div v-if="rules.length === 0" class="rounded border bg-gray-50 p-3 text-sm text-gray-600">
+                <h2 class="mb-2 font-semibold">{{ t('tournamentTree') }}</h2>
+                <p class="mb-3 text-sm text-gray-600">{{ t('tournamentTreeDescription') }}</p>
+                <div v-if="tournamentTree.columns.length === 0" class="rounded border bg-gray-50 p-3 text-sm text-gray-600">
                     {{ t('noAdvancementRulesYet') }}
                 </div>
-                <div v-else class="overflow-auto rounded border">
-                    <table class="min-w-full text-sm">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="border px-2 py-1 text-left">{{ t('source') }}</th>
-                                <th class="border px-2 py-1 text-left">{{ t('rank') }}</th>
-                                <th class="border px-2 py-1 text-left">{{ t('action') }}</th>
-                                <th class="border px-2 py-1 text-left">{{ t('priority') }}</th>
-                                <th class="border px-2 py-1 text-left">{{ t('active') }}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="rule in rules" :key="rule.id">
-                                <td class="border px-2 py-1">{{ sourceTypeLabel(rule.source_type) }}: {{ rule.source_label }}</td>
-                                <td class="border px-2 py-1">{{ rule.source_rank }}</td>
-                                <td class="border px-2 py-1">{{ actionLabel(rule) }}</td>
-                                <td class="border px-2 py-1">{{ rule.priority }}</td>
-                                <td class="border px-2 py-1">{{ rule.is_active ? t('yes') : t('no') }}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <div class="rounded border bg-white p-4">
-                <h2 class="mb-2 font-semibold">{{ t('groupClusters') }}</h2>
-                <div v-if="groupSummaries.length === 0" class="rounded border bg-gray-50 p-3 text-sm text-gray-600">
-                    {{ t('noGroupsCreatedYet') }}
-                </div>
-                <div v-else class="space-y-3">
-                    <div v-for="group in groupSummaries" :key="`group-${group.id}`" class="rounded border p-3">
-                        <div class="mb-2 flex flex-wrap items-center gap-2">
-                            <div class="font-medium">{{ group.name }}</div>
-                            <span class="rounded border px-2 py-0.5 text-xs">
-                                {{ t('roundsInGroup') }}: {{ group.round_count }}
-                            </span>
-                            <span class="rounded border px-2 py-0.5 text-xs">
-                                {{ t('completedRounds') }}: {{ group.completed_round_count }}
-                            </span>
-                        </div>
-                        <div class="mb-2 overflow-auto rounded border">
-                            <table class="min-w-full text-sm">
-                                <thead class="bg-gray-50">
-                                    <tr>
-                                        <th class="border px-2 py-1 text-left">{{ t('round') }}</th>
-                                        <th class="border px-2 py-1 text-left">{{ t('status') }}</th>
-                                        <th class="border px-2 py-1 text-left">{{ t('phase') }}</th>
-                                        <th class="border px-2 py-1 text-left">{{ t('scheduled') }}</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr v-for="round in group.rounds" :key="`group-round-${round.id}`">
-                                        <td class="border px-2 py-1">{{ round.name }}</td>
-                                        <td class="border px-2 py-1">{{ statusLabel(round.status) }}</td>
-                                        <td class="border px-2 py-1">{{ round.phase }}</td>
-                                        <td class="border px-2 py-1">{{ formatSchedule(round.scheduled_start_at) }}</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                        <div class="overflow-auto rounded border">
-                            <table class="min-w-full table-fixed text-sm">
-                                <colgroup>
-                                    <col class="w-20" />
-                                    <col />
-                                    <col class="w-28" />
-                                </colgroup>
-                                <thead class="bg-gray-50">
-                                    <tr>
-                                        <th class="border px-2 py-1 text-left">{{ t('rank') }}</th>
-                                        <th class="border px-2 py-1 text-left">{{ t('team') }}</th>
-                                        <th class="border px-2 py-1 text-left">{{ t('totalScore') }}</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr v-for="(row, index) in group.standings" :key="`standing-${group.id}-${row.team_id}`">
-                                        <td class="border px-2 py-1">{{ index + 1 }}</td>
-                                        <td class="border px-2 py-1">{{ row.name }}</td>
-                                        <td class="border px-2 py-1">{{ row.score }}</td>
-                                    </tr>
-                                    <tr v-if="group.standings.length === 0">
-                                        <td class="border px-2 py-1 text-gray-500" colspan="3">{{ t('noTeamScoresYet') }}</td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                <div v-else class="overflow-x-auto">
+                    <div class="flex min-w-max gap-3">
+                        <div
+                            v-for="(column, columnIndex) in tournamentTree.columns"
+                            :key="`stage-${column.depth}`"
+                            class="relative w-72 rounded border bg-gray-50 p-2"
+                        >
+                            <div
+                                v-if="columnIndex < tournamentTree.columns.length - 1"
+                                class="pointer-events-none absolute -right-3 top-1/2 h-0 w-3 border-t border-dashed border-gray-300"
+                            />
+                            <div class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-600">
+                                {{ t('stageLabel') }} {{ column.depth + 1 }}
+                            </div>
+                            <div class="space-y-2">
+                                <div v-for="node in column.nodes" :key="node.key" class="rounded border p-2" :class="nodeCardClass(node.type)">
+                                    <div class="text-sm font-semibold">{{ node.label }}</div>
+                                    <div class="text-xs font-medium" :class="nodeTypeTextClass(node.type)">{{ node.typeLabel }}</div>
+                                    <div v-if="node.outgoing.length" class="mt-2 space-y-1 text-xs text-gray-600">
+                                        <div
+                                            v-for="(out, idx) in node.outgoing"
+                                            :key="`${node.key}-out-${idx}`"
+                                            :class="out.active ? '' : 'opacity-50'"
+                                        >
+                                            {{ t('flowTo') }} {{ out.toLabel }} ({{ out.text }})
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
 
             <div class="rounded border bg-white p-4">
-                <h2 class="mb-2 font-semibold">{{ t('standaloneBracketRounds') }}</h2>
-                <p class="mb-3 text-sm text-gray-600">{{ t('standaloneBracketRoundsDescription') }}</p>
-                <div v-if="standaloneLinkedRounds.length === 0" class="rounded border bg-gray-50 p-3 text-sm text-gray-600">
-                    {{ t('noStandaloneBracketRounds') }}
-                </div>
-                <div v-else class="space-y-2">
-                    <div v-for="round in standaloneLinkedRounds" :key="`standalone-${round.id}`" class="rounded border p-3">
-                        <div class="flex flex-wrap items-center gap-2">
-                            <div class="font-medium">{{ round.name }}</div>
-                            <span class="rounded border px-2 py-0.5 text-xs" :class="statusBadgeClass(round.status)">{{ statusLabel(round.status) }}</span>
-                            <span class="rounded border px-2 py-0.5 text-xs">{{ t('phase') }}: {{ round.phase }}</span>
-                            <span class="rounded border px-2 py-0.5 text-xs">{{ t('scheduled') }}: {{ formatSchedule(round.scheduled_start_at) }}</span>
-                        </div>
+                <h2 class="mb-2 font-semibold">{{ t('treeLegend') }}</h2>
+                <div class="grid gap-2 text-sm md:grid-cols-2">
+                    <div class="rounded border bg-gray-50 px-3 py-2">
+                        <span class="font-semibold">{{ t('group') }}</span>: {{ t('treeLegendGroup') }}
                     </div>
-                </div>
-            </div>
-
-            <div class="rounded border bg-white p-4">
-                <h2 class="mb-2 font-semibold">{{ t('friendlyOrUnlinkedRounds') }}</h2>
-                <p class="mb-3 text-sm text-gray-600">{{ t('friendlyOrUnlinkedRoundsDescription') }}</p>
-                <div v-if="unlinkedRounds.length === 0" class="rounded border bg-gray-50 p-3 text-sm text-gray-600">
-                    {{ t('noUnlinkedRounds') }}
-                </div>
-                <div v-else class="overflow-auto rounded border">
-                    <table class="min-w-full text-sm">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="border px-2 py-1 text-left">{{ t('round') }}</th>
-                                <th class="border px-2 py-1 text-left">{{ t('status') }}</th>
-                                <th class="border px-2 py-1 text-left">{{ t('phase') }}</th>
-                                <th class="border px-2 py-1 text-left">{{ t('scheduled') }}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="round in unlinkedRounds" :key="`unlinked-${round.id}`">
-                                <td class="border px-2 py-1">{{ round.name }}</td>
-                                <td class="border px-2 py-1">{{ statusLabel(round.status) }}</td>
-                                <td class="border px-2 py-1">{{ round.phase }}</td>
-                                <td class="border px-2 py-1">{{ formatSchedule(round.scheduled_start_at) }}</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                    <div class="rounded border bg-gray-50 px-3 py-2">
+                        <span class="font-semibold">{{ t('round') }}</span>: {{ t('treeLegendRound') }}
+                    </div>
+                    <div class="rounded border bg-gray-50 px-3 py-2">
+                        <span class="font-semibold">{{ t('eliminate') }}</span>: {{ t('treeLegendEliminated') }}
+                    </div>
+                    <div class="rounded border bg-gray-50 px-3 py-2">
+                        <span class="font-semibold">{{ t('active') }}/{{ t('inactiveOnly') }}</span>: {{ t('treeLegendActive') }}
+                    </div>
                 </div>
             </div>
         </div>

@@ -87,8 +87,6 @@ class TournamentController extends Controller
             'advancementRules.targetRound:id,name,code',
         ]);
 
-        $groupSummaries = $this->buildGroupSummaries($tournament);
-
         $rules = $tournament->advancementRules
             ->sortBy([['priority', 'asc'], ['id', 'asc']])
             ->values()
@@ -96,8 +94,11 @@ class TournamentController extends Controller
                 return [
                     'id' => $rule->id,
                     'source_type' => $rule->source_type,
+                    'source_group_id' => $rule->source_group_id ? (int) $rule->source_group_id : null,
+                    'source_round_id' => $rule->source_round_id ? (int) $rule->source_round_id : null,
                     'source_rank' => $rule->source_rank,
                     'action_type' => $rule->action_type,
+                    'target_round_id' => $rule->target_round_id ? (int) $rule->target_round_id : null,
                     'target_slot' => $rule->target_slot,
                     'bonus_score' => (int) ($rule->bonus_score ?? 0),
                     'is_active' => (bool) $rule->is_active,
@@ -130,22 +131,6 @@ class TournamentController extends Controller
                 ])->values(),
             ]);
 
-        $unlinkedRounds = $tournament->rounds
-            ->filter(fn ($round) => !$round->group_id && !$linkedRoundIds->contains($round->id))
-            ->values()
-            ->map(fn ($round) => [
-                'id' => $round->id,
-                'name' => $round->name,
-                'code' => $round->code,
-                'status' => $round->status,
-                'phase' => $round->phase,
-                'scheduled_start_at' => $round->scheduled_start_at,
-                'participants' => $round->participants->map(fn ($p) => [
-                    'slot' => $p->slot,
-                    'name' => $p->display_name_snapshot ?? $p->team?->team_name ?? "Team {$p->slot}",
-                ])->values(),
-            ]);
-
         return Inertia::render('Admin/Tournaments/Visualization', [
             'tournament' => [
                 'id' => $tournament->id,
@@ -153,10 +138,8 @@ class TournamentController extends Controller
                 'year' => $tournament->year,
                 'status' => $tournament->status,
             ],
-            'groupSummaries' => $groupSummaries,
             'rules' => $rules,
             'standaloneLinkedRounds' => $standaloneLinkedRounds,
-            'unlinkedRounds' => $unlinkedRounds,
         ]);
     }
 
