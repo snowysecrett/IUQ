@@ -1,5 +1,5 @@
 <script setup>
-import { Head, router, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import MainLayout from '@/Layouts/MainLayout.vue';
 import { computed, ref } from 'vue';
 import { usePage } from '@inertiajs/vue3';
@@ -430,6 +430,14 @@ const logTeamChange = (log) => `${log.before_team?.team_name || t('noTeam')} -> 
 <template>
     <Head :title="tournament.name" />
     <MainLayout :title="tournament.name">
+        <div class="mb-4 rounded border bg-white p-4">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+                <div class="text-sm text-gray-600">{{ t('visualizeTournamentDescription') }}</div>
+                <Link :href="route('admin.tournaments.visualization', tournament.id)" class="rounded border px-3 py-1 text-sm">
+                    {{ t('visualizeTournament') }}
+                </Link>
+            </div>
+        </div>
         <div class="grid gap-4" :class="isSuperAdmin ? 'lg:grid-cols-2' : 'lg:grid-cols-1'">
             <form v-if="isSuperAdmin" @submit.prevent="updateTournament" class="rounded border bg-white p-4">
                 <h2 class="mb-2 font-semibold">{{ t('tournamentSettings') }}</h2>
@@ -746,7 +754,12 @@ const logTeamChange = (log) => `${log.before_team?.team_name || t('noTeam')} -> 
                     </div>
                     <div v-if="summary.standings.length === 0" class="p-3 text-sm text-gray-600">{{ t('noTeamScoresYet') }}</div>
                     <div v-else class="overflow-auto">
-                        <table class="min-w-full text-sm">
+                        <table class="min-w-full table-fixed text-sm">
+                            <colgroup>
+                                <col class="w-20" />
+                                <col />
+                                <col class="w-28" />
+                            </colgroup>
                             <thead class="bg-gray-50">
                                 <tr>
                                     <th class="border px-2 py-1 text-left">{{ t('rank') }}</th>

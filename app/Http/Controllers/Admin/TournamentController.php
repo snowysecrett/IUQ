@@ -59,79 +59,104 @@ class TournamentController extends Controller
             'rounds.result',
         ]);
 
-        $groupSummaries = $tournament->groups->map(function ($group) {
-            $totals = [];
-
-            foreach ($group->rounds as $round) {
-                if ($round->result && $round->result->entries->isNotEmpty()) {
-                    foreach ($round->result->entries as $entry) {
-                        if (!$entry->team_id) {
-                            continue;
-                        }
-
-                        if (!isset($totals[$entry->team_id])) {
-                            $totals[$entry->team_id] = [
-                                'team_id' => $entry->team_id,
-                                'name' => $entry->display_name_snapshot ?? "Team {$entry->slot}",
-                                'score' => 0,
-                            ];
-                        }
-
-                        $totals[$entry->team_id]['score'] += (int) $entry->score;
-                    }
-                } else {
-                    $scoreBySlot = $round->scores->keyBy('slot');
-
-                    foreach ($round->participants as $participant) {
-                        if (!$participant->team_id) {
-                            continue;
-                        }
-
-                        $teamId = $participant->team_id;
-                        $name = $participant->display_name_snapshot
-                            ?? $participant->team?->team_name
-                            ?? "Team {$participant->slot}";
-                        $score = (int) ($scoreBySlot[$participant->slot]->score ?? 0);
-
-                        if (!isset($totals[$teamId])) {
-                            $totals[$teamId] = [
-                                'team_id' => $teamId,
-                                'name' => $name,
-                                'score' => 0,
-                            ];
-                        }
-
-                        $totals[$teamId]['score'] += $score;
-                    }
-                }
-            }
-
-            $standings = collect($totals)
-                ->sort(function ($a, $b) {
-                    if ($a['score'] === $b['score']) {
-                        return $a['team_id'] <=> $b['team_id'];
-                    }
-
-                    return $b['score'] <=> $a['score'];
-                })
-                ->values();
-
-            return [
-                'id' => $group->id,
-                'name' => $group->name,
-                'code' => $group->code,
-                'sort_order' => $group->sort_order,
-                'round_count' => $group->rounds->count(),
-                'completed_round_count' => $group->rounds->where('status', 'completed')->count(),
-                'is_completed' => $group->rounds->isNotEmpty() && $group->rounds->every(fn ($round) => $round->status === 'completed'),
-                'standings' => $standings,
-            ];
-        })->values();
+        $groupSummaries = $this->buildGroupSummaries($tournament);
 
         return Inertia::render('Admin/Tournaments/Show', [
             'tournament' => $tournament,
             'allTeams' => Team::query()->orderBy('university_name')->orderBy('team_name')->get(),
             'groupSummaries' => $groupSummaries,
+        ]);
+    }
+
+    public function visualization(Tournament $tournament): Response
+    {
+        Tournament::syncScheduledStatuses();
+
+        $tournament->load([
+            'groups.rounds' => fn ($q) => $q->orderBy('sort_order')->orderBy('id'),
+            'groups.rounds.participants.team',
+            'groups.rounds.scores',
+            'groups.rounds.result.entries',
+            'rounds' => fn ($q) => $q->orderBy('sort_order')->orderBy('id'),
+            'rounds.group',
+            'rounds.participants.team',
+            'rounds.scores',
+            'rounds.result.entries',
+            'advancementRules.sourceRound:id,name,code',
+            'advancementRules.sourceGroup:id,name,code',
+            'advancementRules.targetRound:id,name,code',
+        ]);
+
+        $groupSummaries = $this->buildGroupSummaries($tournament);
+
+        $rules = $tournament->advancementRules
+            ->sortBy([['priority', 'asc'], ['id', 'asc']])
+            ->values()
+            ->map(function ($rule) {
+                return [
+                    'id' => $rule->id,
+                    'source_type' => $rule->source_type,
+                    'source_rank' => $rule->source_rank,
+                    'action_type' => $rule->action_type,
+                    'target_slot' => $rule->target_slot,
+                    'bonus_score' => (int) ($rule->bonus_score ?? 0),
+                    'is_active' => (bool) $rule->is_active,
+                    'priority' => (int) $rule->priority,
+                    'source_label' => $rule->source_type === 'group'
+                        ? ($rule->sourceGroup?->name ?? '-')
+                        : ($rule->sourceRound?->name ?? '-'),
+                    'target_label' => $rule->targetRound?->name ?? '-',
+                ];
+            });
+
+        $linkedRoundIds = $tournament->advancementRules
+            ->flatMap(fn ($rule) => array_filter([$rule->source_round_id, $rule->target_round_id]))
+            ->map(fn ($id) => (int) $id)
+            ->unique();
+
+        $standaloneLinkedRounds = $tournament->rounds
+            ->filter(fn ($round) => !$round->group_id && $linkedRoundIds->contains($round->id))
+            ->values()
+            ->map(fn ($round) => [
+                'id' => $round->id,
+                'name' => $round->name,
+                'code' => $round->code,
+                'status' => $round->status,
+                'phase' => $round->phase,
+                'scheduled_start_at' => $round->scheduled_start_at,
+                'participants' => $round->participants->map(fn ($p) => [
+                    'slot' => $p->slot,
+                    'name' => $p->display_name_snapshot ?? $p->team?->team_name ?? "Team {$p->slot}",
+                ])->values(),
+            ]);
+
+        $unlinkedRounds = $tournament->rounds
+            ->filter(fn ($round) => !$round->group_id && !$linkedRoundIds->contains($round->id))
+            ->values()
+            ->map(fn ($round) => [
+                'id' => $round->id,
+                'name' => $round->name,
+                'code' => $round->code,
+                'status' => $round->status,
+                'phase' => $round->phase,
+                'scheduled_start_at' => $round->scheduled_start_at,
+                'participants' => $round->participants->map(fn ($p) => [
+                    'slot' => $p->slot,
+                    'name' => $p->display_name_snapshot ?? $p->team?->team_name ?? "Team {$p->slot}",
+                ])->values(),
+            ]);
+
+        return Inertia::render('Admin/Tournaments/Visualization', [
+            'tournament' => [
+                'id' => $tournament->id,
+                'name' => $tournament->name,
+                'year' => $tournament->year,
+                'status' => $tournament->status,
+            ],
+            'groupSummaries' => $groupSummaries,
+            'rules' => $rules,
+            'standaloneLinkedRounds' => $standaloneLinkedRounds,
+            'unlinkedRounds' => $unlinkedRounds,
         ]);
     }
 
@@ -366,6 +391,85 @@ class TournamentController extends Controller
         $tournament->update($data);
 
         return back()->with('success', 'Tournament updated.');
+    }
+
+    private function buildGroupSummaries(Tournament $tournament)
+    {
+        return $tournament->groups->map(function ($group) {
+            $totals = [];
+
+            foreach ($group->rounds as $round) {
+                if ($round->result && $round->result->entries->isNotEmpty()) {
+                    foreach ($round->result->entries as $entry) {
+                        if (!$entry->team_id) {
+                            continue;
+                        }
+
+                        if (!isset($totals[$entry->team_id])) {
+                            $totals[$entry->team_id] = [
+                                'team_id' => $entry->team_id,
+                                'name' => $entry->display_name_snapshot ?? "Team {$entry->slot}",
+                                'score' => 0,
+                            ];
+                        }
+
+                        $totals[$entry->team_id]['score'] += (int) $entry->score;
+                    }
+                } else {
+                    $scoreBySlot = $round->scores->keyBy('slot');
+
+                    foreach ($round->participants as $participant) {
+                        if (!$participant->team_id) {
+                            continue;
+                        }
+
+                        $teamId = $participant->team_id;
+                        $name = $participant->display_name_snapshot
+                            ?? $participant->team?->team_name
+                            ?? "Team {$participant->slot}";
+                        $score = (int) ($scoreBySlot[$participant->slot]->score ?? 0);
+
+                        if (!isset($totals[$teamId])) {
+                            $totals[$teamId] = [
+                                'team_id' => $teamId,
+                                'name' => $name,
+                                'score' => 0,
+                            ];
+                        }
+
+                        $totals[$teamId]['score'] += $score;
+                    }
+                }
+            }
+
+            $standings = collect($totals)
+                ->sort(function ($a, $b) {
+                    if ($a['score'] === $b['score']) {
+                        return $a['team_id'] <=> $b['team_id'];
+                    }
+
+                    return $b['score'] <=> $a['score'];
+                })
+                ->values();
+
+            return [
+                'id' => $group->id,
+                'name' => $group->name,
+                'code' => $group->code,
+                'sort_order' => $group->sort_order,
+                'round_count' => $group->rounds->count(),
+                'completed_round_count' => $group->rounds->where('status', 'completed')->count(),
+                'is_completed' => $group->rounds->isNotEmpty() && $group->rounds->every(fn ($round) => $round->status === 'completed'),
+                'standings' => $standings,
+                'rounds' => $group->rounds->map(fn ($round) => [
+                    'id' => $round->id,
+                    'name' => $round->name,
+                    'status' => $round->status,
+                    'phase' => $round->phase,
+                    'scheduled_start_at' => $round->scheduled_start_at,
+                ])->values(),
+            ];
+        })->values();
     }
 
     public function addTeam(Request $request, Tournament $tournament): RedirectResponse
