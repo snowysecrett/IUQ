@@ -123,7 +123,14 @@ const statusLabel = (status) => {
                         {{ t('scoresHidden') }}
                     </span>
                 </div>
-                <table class="min-w-full text-sm">
+                <table class="min-w-full table-fixed text-sm">
+                    <colgroup>
+                        <col class="w-28" />
+                        <col class="w-44" />
+                        <col class="w-48" />
+                        <col />
+                        <col />
+                    </colgroup>
                     <thead>
                         <tr>
                             <th class="border px-2 py-1 text-left">{{ t('roundStatus') }}</th>
