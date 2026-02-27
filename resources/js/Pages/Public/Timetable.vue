@@ -8,18 +8,42 @@ const props = defineProps({
     years: Array,
     tournaments: Array,
     selectedTournament: Object,
+    selectedSection: String,
+    selectedRounds: Array,
+    sectionRoundCounts: Object,
 });
 const { t } = useI18n();
 
+const sectionTabs = [
+    { key: 'upcoming', labelKey: 'upcomingRounds' },
+    { key: 'live', labelKey: 'liveRounds' },
+    { key: 'completed', labelKey: 'completedRounds' },
+];
+
 const filterYear = (event) => {
     const value = event.target.value;
-    router.get(route('timetable.index'), value ? { year: value } : {}, { preserveState: true });
+    const query = {
+        ...(value ? { year: value } : {}),
+        section: props.selectedSection || 'live',
+    };
+    router.get(route('timetable.index'), query, { preserveState: true });
 };
 
 const selectTournament = (event) => {
     router.get(route('timetable.index'), {
         tournament_id: event.target.value,
+        section: props.selectedSection || 'live',
     }, { preserveState: true });
+};
+
+const selectSection = (section) => {
+    const query = {
+        section,
+    };
+    if (props.selectedTournament?.id) {
+        query.tournament_id = props.selectedTournament.id;
+    }
+    router.get(route('timetable.index'), query, { preserveState: true });
 };
 
 const formatScheduledAt = (value) => {
@@ -76,8 +100,20 @@ const statusLabel = (status) => {
             </select>
         </div>
 
-        <div v-if="selectedTournament" class="space-y-3">
-            <div v-for="round in selectedTournament.rounds" :key="round.id" class="overflow-auto rounded border bg-white">
+        <div class="mb-4 flex flex-wrap gap-2 rounded border bg-white p-3">
+            <button
+                v-for="tab in sectionTabs"
+                :key="tab.key"
+                class="rounded border px-3 py-1 text-sm"
+                :class="(selectedSection || 'live') === tab.key ? 'border-gray-900 bg-gray-900 text-white' : 'bg-white'"
+                @click="selectSection(tab.key)"
+            >
+                {{ t(tab.labelKey) }} ({{ sectionRoundCounts?.[tab.key] ?? 0 }})
+            </button>
+        </div>
+
+        <div v-if="selectedTournament && selectedRounds?.length" class="space-y-3">
+            <div v-for="round in selectedRounds" :key="round.id" class="overflow-auto rounded border bg-white">
                 <div class="flex items-center justify-between border-b bg-gray-50 px-3 py-2">
                     <div class="text-lg font-semibold">{{ round.name }}</div>
                     <span
@@ -120,6 +156,9 @@ const statusLabel = (status) => {
                     </tbody>
                 </table>
             </div>
+        </div>
+        <div v-else-if="selectedTournament" class="rounded border bg-white p-4 text-sm text-gray-600">
+            {{ t('noRoundsInSection') }}
         </div>
     </MainLayout>
 </template>
