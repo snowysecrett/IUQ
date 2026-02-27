@@ -24,7 +24,7 @@ const filterYear = (event) => {
     const value = event.target.value;
     const query = {
         ...(value ? { year: value } : {}),
-        section: props.selectedSection || 'live',
+        section: props.selectedSection || 'upcoming',
     };
     router.get(route('timetable.index'), query, { preserveState: true });
 };
@@ -32,7 +32,7 @@ const filterYear = (event) => {
 const selectTournament = (event) => {
     router.get(route('timetable.index'), {
         tournament_id: event.target.value,
-        section: props.selectedSection || 'live',
+        section: props.selectedSection || 'upcoming',
     }, { preserveState: true });
 };
 
@@ -105,7 +105,7 @@ const statusLabel = (status) => {
                 v-for="tab in sectionTabs"
                 :key="tab.key"
                 class="rounded border px-3 py-1 text-sm"
-                :class="(selectedSection || 'live') === tab.key ? 'border-gray-900 bg-gray-900 text-white' : 'bg-white'"
+                :class="(selectedSection || 'upcoming') === tab.key ? 'border-gray-900 bg-gray-900 text-white' : 'bg-white'"
                 @click="selectSection(tab.key)"
             >
                 {{ t(tab.labelKey) }} ({{ sectionRoundCounts?.[tab.key] ?? 0 }})

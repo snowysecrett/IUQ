@@ -15,9 +15,9 @@ class TimetableController extends Controller
 
         $year = $request->integer('year');
         $tournamentId = $request->integer('tournament_id');
-        $section = $request->query('section', 'live');
+        $section = $request->query('section', 'upcoming');
         if (!in_array($section, ['upcoming', 'live', 'completed'], true)) {
-            $section = 'live';
+            $section = 'upcoming';
         }
 
         $tournamentsQuery = Tournament::query()->orderByDesc('year')->orderBy('name');
