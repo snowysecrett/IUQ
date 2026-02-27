@@ -103,19 +103,24 @@ const isEndModalOpen = ref(false);
 const endResultEntries = ref([]);
 
 const selectTournament = (event) => {
-    router.get(route('control.index'), { tournament_id: event.target.value }, { preserveState: true });
+    router.get(route('control.index'), {
+        tournament_id: event.target.value,
+        chooser: 1,
+    }, { preserveState: true });
 };
 
 const selectRound = (event) => {
     if (!event.target.value) {
         router.get(route('control.index'), {
             tournament_id: props.selectedTournamentId,
+            chooser: 1,
         }, { preserveState: true });
         return;
     }
     router.get(route('control.index'), {
         tournament_id: props.selectedTournamentId,
         round_id: event.target.value,
+        chooser: 0,
     }, { preserveState: true });
 };
 
@@ -123,6 +128,7 @@ const goToRound = (roundId) => {
     router.get(route('control.index'), {
         tournament_id: props.selectedTournamentId,
         round_id: roundId,
+        chooser: 0,
     }, { preserveState: true });
 };
 

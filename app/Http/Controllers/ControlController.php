@@ -27,6 +27,7 @@ class ControlController extends Controller
 
         $tournamentId = $request->integer('tournament_id');
         $roundId = $request->integer('round_id');
+        $chooserMode = $request->boolean('chooser');
 
         $tournaments = Tournament::query()->orderByDesc('year')->orderBy('name')->get();
 
@@ -41,8 +42,11 @@ class ControlController extends Controller
 
         if ($selectedTournament) {
             $rounds = $selectedTournament->rounds()->orderBy('sort_order')->orderBy('id')->get();
-            $shouldDeferDefaultRoundSelection = ! $roundId
+            $shouldDeferDefaultRoundSelection = $chooserMode
+                || (
+                    ! $roundId
                 && $selectedTournament->status === 'live';
+                );
 
             if ($roundId) {
                 $selectedRound = $selectedTournament->rounds()->with(['participants', 'scores', 'result.entries'])->find($roundId);
