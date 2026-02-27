@@ -108,6 +108,9 @@ const selectTournament = (event) => {
 
 const selectRound = (event) => {
     if (!event.target.value) {
+        router.get(route('control.index'), {
+            tournament_id: props.selectedTournamentId,
+        }, { preserveState: true });
         return;
     }
     router.get(route('control.index'), {
@@ -279,7 +282,7 @@ const bonusIndicatorText = (slot) => {
                 </option>
             </select>
             <select class="rounded border px-2 py-1" :value="selectedRound?.id ?? ''" @change="selectRound">
-                <option value="" disabled>{{ t('selectRoundPrompt') }}</option>
+                <option value="">{{ t('selectRoundPrompt') }}</option>
                 <option v-for="round in rounds" :key="round.id" :value="round.id">
                     {{ round.name }}
                 </option>
@@ -287,7 +290,7 @@ const bonusIndicatorText = (slot) => {
         </div>
 
         <div v-if="!selectedRound && (suggestedRounds?.length || 0) > 0" class="mb-4 rounded border bg-white p-4">
-            <div class="mb-2 text-sm font-semibold">{{ t('likelyRounds') }}</div>
+            <div class="mb-2 text-lg font-semibold">{{ t('likelyRounds') }}</div>
             <div class="overflow-auto rounded border">
                 <table class="min-w-full text-sm">
                     <thead class="bg-gray-50">
