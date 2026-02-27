@@ -379,6 +379,120 @@ class IuqSafetyChecksTest extends TestCase
         $this->assertSame(25, (int) $clonedRule->bonus_score);
     }
 
+    public function test_clone_rules_can_optionally_clone_teams_round_start_times_and_non_dependent_participants(): void
+    {
+        $superAdmin = User::factory()->create([
+            'role' => User::ROLE_SUPER_ADMIN,
+            'approved_at' => now(),
+        ]);
+
+        $source = Tournament::query()->create([
+            'name' => 'IUQ 2032',
+            'year' => 2032,
+            'status' => 'draft',
+            'timezone' => 'UTC',
+        ]);
+
+        $teamA = Team::query()->create(['university_name' => 'A', 'team_name' => 'Team A']);
+        $teamB = Team::query()->create(['university_name' => 'B', 'team_name' => 'Team B']);
+        $teamC = Team::query()->create(['university_name' => 'C', 'team_name' => 'Team C']);
+
+        $source->tournamentTeams()->create([
+            'team_id' => $teamA->id,
+            'display_name_snapshot' => 'Team A Snap',
+            'icon_snapshot_path' => 'teams/a.png',
+        ]);
+        $source->tournamentTeams()->create([
+            'team_id' => $teamB->id,
+            'display_name_snapshot' => 'Team B Snap',
+            'icon_snapshot_path' => 'teams/b.png',
+        ]);
+        $source->tournamentTeams()->create([
+            'team_id' => $teamC->id,
+            'display_name_snapshot' => 'Team C Snap',
+            'icon_snapshot_path' => 'teams/c.png',
+        ]);
+
+        $sourceRound = Round::query()->create([
+            'tournament_id' => $source->id,
+            'name' => 'Prelim A1',
+            'teams_per_round' => 3,
+            'default_score' => 100,
+            'status' => 'draft',
+            'phase' => 'lightning',
+            'scheduled_start_at' => now()->addDay(),
+            'score_deltas' => [20, 10, -10],
+            'sort_order' => 0,
+        ]);
+
+        $sourceRound->participants()->create([
+            'slot' => 1,
+            'team_id' => $teamA->id,
+            'display_name_snapshot' => 'Team A Snap',
+            'icon_snapshot_path' => 'teams/a.png',
+        ]);
+        $sourceRound->participants()->create([
+            'slot' => 2,
+            'team_id' => $teamB->id,
+            'display_name_snapshot' => 'Team B Snap',
+            'icon_snapshot_path' => 'teams/b.png',
+        ]);
+        $sourceRound->participants()->create([
+            'slot' => 3,
+            'team_id' => $teamC->id,
+            'display_name_snapshot' => 'Team C Snap',
+            'icon_snapshot_path' => 'teams/c.png',
+        ]);
+        for ($slot = 1; $slot <= 3; $slot++) {
+            $sourceRound->scores()->create(['slot' => $slot, 'score' => 100]);
+        }
+
+        AdvancementRule::query()->create([
+            'tournament_id' => $source->id,
+            'source_type' => 'round',
+            'source_round_id' => $sourceRound->id,
+            'source_group_id' => null,
+            'source_rank' => 1,
+            'action_type' => 'advance',
+            'target_round_id' => $sourceRound->id,
+            'target_slot' => 2,
+            'bonus_score' => 10,
+            'is_active' => true,
+            'priority' => 0,
+            'created_by_user_id' => $superAdmin->id,
+        ]);
+
+        $this->actingAs($superAdmin)
+            ->post(route('admin.tournaments.clone-rules'), [
+                'source_tournament_id' => $source->id,
+                'name' => 'IUQ 2033',
+                'year' => 2033,
+                'scheduled_start_at' => null,
+                'clone_tournament_teams' => true,
+                'clone_round_start_times' => true,
+                'clone_eligible_round_participants' => true,
+            ])
+            ->assertRedirect();
+
+        $clone = Tournament::query()->where('name', 'IUQ 2033')->firstOrFail();
+        $clonedRound = $clone->rounds()->firstOrFail();
+
+        $this->assertSame(3, $clone->tournamentTeams()->count());
+        $this->assertDatabaseHas('tournament_teams', [
+            'tournament_id' => $clone->id,
+            'team_id' => $teamA->id,
+            'display_name_snapshot' => 'Team A Snap',
+        ]);
+
+        $this->assertNotNull($clonedRound->scheduled_start_at);
+        $this->assertTrue($clonedRound->scheduled_start_at->equalTo($sourceRound->scheduled_start_at));
+
+        $clonedParticipants = $clonedRound->participants()->orderBy('slot')->get();
+        $this->assertSame($teamA->id, $clonedParticipants[0]->team_id);
+        $this->assertNull($clonedParticipants[1]->team_id); // slot 2 is advancement-dependent
+        $this->assertSame($teamC->id, $clonedParticipants[2]->team_id);
+    }
+
     public function test_only_superadmin_can_create_advancement_rules(): void
     {
         $admin = User::factory()->create([

@@ -174,18 +174,34 @@ class TournamentController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'year' => ['required', 'integer', 'min:2000', 'max:2100'],
             'scheduled_start_at' => ['nullable', 'date'],
+            'clone_tournament_teams' => ['nullable', 'boolean'],
+            'clone_round_start_times' => ['nullable', 'boolean'],
+            'clone_eligible_round_participants' => ['nullable', 'boolean'],
         ]);
+
+        $cloneTournamentTeams = (bool) ($data['clone_tournament_teams'] ?? false);
+        $cloneRoundStartTimes = (bool) ($data['clone_round_start_times'] ?? false);
+        $cloneEligibleRoundParticipants = (bool) ($data['clone_eligible_round_participants'] ?? false) && $cloneTournamentTeams;
 
         $source = Tournament::query()
             ->with([
                 'roundTemplates' => fn ($q) => $q->orderBy('sort_order')->orderBy('id'),
                 'groups' => fn ($q) => $q->orderBy('sort_order')->orderBy('id'),
                 'rounds' => fn ($q) => $q->orderBy('sort_order')->orderBy('id'),
+                'rounds.participants' => fn ($q) => $q->orderBy('slot'),
                 'advancementRules',
+                'tournamentTeams',
             ])
             ->findOrFail($data['source_tournament_id']);
 
-        $clonedTournament = DB::transaction(function () use ($source, $data, $request) {
+        $clonedTournament = DB::transaction(function () use (
+            $source,
+            $data,
+            $request,
+            $cloneTournamentTeams,
+            $cloneRoundStartTimes,
+            $cloneEligibleRoundParticipants
+        ) {
             $newTournament = Tournament::query()->create([
                 'name' => $data['name'],
                 'year' => (int) $data['year'],
@@ -194,6 +210,16 @@ class TournamentController extends Controller
                 'timezone' => $source->timezone ?: 'UTC',
                 'logo_path' => $source->logo_path,
             ]);
+
+            if ($cloneTournamentTeams) {
+                foreach ($source->tournamentTeams as $sourceTournamentTeam) {
+                    $newTournament->tournamentTeams()->create([
+                        'team_id' => $sourceTournamentTeam->team_id,
+                        'display_name_snapshot' => $sourceTournamentTeam->display_name_snapshot,
+                        'icon_snapshot_path' => $sourceTournamentTeam->icon_snapshot_path,
+                    ]);
+                }
+            }
 
             $templateMap = [];
             foreach ($source->roundTemplates as $template) {
@@ -224,6 +250,20 @@ class TournamentController extends Controller
                 $groupMap[$group->id] = $newGroup->id;
             }
 
+            $dependentSlotsBySourceRound = [];
+            foreach ($source->advancementRules as $rule) {
+                if (
+                    ! $rule->is_active
+                    || $rule->action_type !== 'advance'
+                    || ! $rule->target_round_id
+                    || ! $rule->target_slot
+                ) {
+                    continue;
+                }
+
+                $dependentSlotsBySourceRound[(int) $rule->target_round_id][(int) $rule->target_slot] = true;
+            }
+
             $roundMap = [];
             foreach ($source->rounds as $round) {
                 $newRound = $newTournament->rounds()->create([
@@ -236,7 +276,7 @@ class TournamentController extends Controller
                     'status' => 'draft',
                     'phase' => 'lightning',
                     'hide_public_scores' => (bool) $round->hide_public_scores,
-                    'scheduled_start_at' => null,
+                    'scheduled_start_at' => $cloneRoundStartTimes ? $round->scheduled_start_at : null,
                     'score_deltas' => $round->score_deltas,
                     'has_fever' => $round->has_fever ?? false,
                     'has_ultimate_fever' => $round->has_ultimate_fever ?? false,
@@ -248,12 +288,17 @@ class TournamentController extends Controller
                 ]);
                 $roundMap[$round->id] = $newRound->id;
 
+                $sourceParticipantsBySlot = $round->participants->keyBy('slot');
                 for ($slot = 1; $slot <= (int) $round->teams_per_round; $slot++) {
+                    $shouldCloneParticipant = $cloneEligibleRoundParticipants
+                        && ! (($dependentSlotsBySourceRound[(int) $round->id][(int) $slot] ?? false));
+                    $sourceParticipant = $shouldCloneParticipant ? $sourceParticipantsBySlot->get($slot) : null;
+
                     $newRound->participants()->create([
                         'slot' => $slot,
-                        'team_id' => null,
-                        'display_name_snapshot' => null,
-                        'icon_snapshot_path' => null,
+                        'team_id' => $sourceParticipant?->team_id,
+                        'display_name_snapshot' => $sourceParticipant?->display_name_snapshot,
+                        'icon_snapshot_path' => $sourceParticipant?->icon_snapshot_path,
                     ]);
                     $newRound->scores()->create([
                         'slot' => $slot,
@@ -283,7 +328,7 @@ class TournamentController extends Controller
 
         return redirect()
             ->route('admin.tournaments.show', $clonedTournament)
-            ->with('success', 'Tournament cloned with rules only. Teams, scores and results are empty.');
+            ->with('success', 'Tournament cloned successfully.');
     }
 
     public function update(Request $request, Tournament $tournament): RedirectResponse

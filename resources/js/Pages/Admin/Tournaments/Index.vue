@@ -26,6 +26,9 @@ const cloneForm = useForm({
     name: '',
     year: new Date().getFullYear(),
     scheduled_start_at: '',
+    clone_tournament_teams: false,
+    clone_round_start_times: false,
+    clone_eligible_round_participants: false,
 });
 
 const submit = () => {
@@ -37,7 +40,7 @@ const submit = () => {
 
 const submitClone = () => {
     cloneForm.post(route('admin.tournaments.clone-rules'), {
-        onSuccess: () => cloneForm.reset('name', 'scheduled_start_at'),
+        onSuccess: () => cloneForm.reset('name', 'scheduled_start_at', 'clone_tournament_teams', 'clone_round_start_times', 'clone_eligible_round_participants'),
     });
 };
 </script>
@@ -71,7 +74,30 @@ const submitClone = () => {
             <input v-model="cloneForm.name" class="rounded border px-2 py-1" :placeholder="t('newTournamentName')" required />
             <input v-model="cloneForm.year" type="number" class="rounded border px-2 py-1" :placeholder="t('newYear')" required />
             <input v-model="cloneForm.scheduled_start_at" type="datetime-local" class="rounded border px-2 py-1" />
-            <div class="rounded border border-blue-200 bg-blue-50 px-2 py-1 text-xs text-blue-800">{{ t('copiesRulesOnly') }}</div>
+            <div class="rounded border border-blue-200 bg-blue-50 px-2 py-1 text-sm text-blue-800">{{ t('copiesRulesOnly') }}</div>
+            <label class="flex items-center gap-2 rounded border px-2 py-1 text-sm md:col-span-2">
+                <input
+                    v-model="cloneForm.clone_tournament_teams"
+                    type="checkbox"
+                    @change="!cloneForm.clone_tournament_teams && (cloneForm.clone_eligible_round_participants = false)"
+                />
+                <span>{{ t('cloneTournamentTeams') }}</span>
+            </label>
+            <label class="flex items-center gap-2 rounded border px-2 py-1 text-sm md:col-span-2">
+                <input v-model="cloneForm.clone_round_start_times" type="checkbox" />
+                <span>{{ t('cloneRoundStartTimes') }}</span>
+            </label>
+            <label
+                class="flex items-center gap-2 rounded border px-2 py-1 text-sm md:col-span-5"
+                :class="cloneForm.clone_tournament_teams ? '' : 'opacity-60'"
+            >
+                <input
+                    v-model="cloneForm.clone_eligible_round_participants"
+                    type="checkbox"
+                    :disabled="!cloneForm.clone_tournament_teams"
+                />
+                <span>{{ t('cloneEligibleRoundParticipants') }}</span>
+            </label>
             <button class="rounded border bg-gray-900 px-3 py-1 text-white md:col-span-5">{{ t('cloneRulesToNewTournament') }}</button>
         </form>
 
