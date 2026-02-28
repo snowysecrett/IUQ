@@ -28,7 +28,9 @@ Route::get('/', function () {
 
 Route::post('/locale', [LocaleController::class, 'update'])->name('locale.update');
 
-Route::get('/timetable', [TimetableController::class, 'index'])->name('timetable.index');
+Route::get('/timetable', [TimetableController::class, 'index'])
+    ->middleware('throttle:timetable-public')
+    ->name('timetable.index');
 
 Route::get('/dashboard', function () {
     return Inertia::render('Dashboard');

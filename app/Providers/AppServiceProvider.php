@@ -2,6 +2,10 @@
 
 namespace App\Providers;
 
+use App\Models\User;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 
@@ -21,5 +25,15 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Vite::prefetch(concurrency: 3);
+
+        RateLimiter::for('timetable-public', function (Request $request) {
+            $role = $request->user()?->role;
+
+            if (in_array($role, [User::ROLE_ADMIN, User::ROLE_SUPER_ADMIN], true)) {
+                return Limit::perMinute(600)->by('auth:'.$request->user()->id);
+            }
+
+            return Limit::perMinute(20)->by('ip:'.$request->ip());
+        });
     }
 }
