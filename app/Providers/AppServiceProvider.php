@@ -31,14 +31,14 @@ class AppServiceProvider extends ServiceProvider
             $userId = $request->user()?->id;
 
             if (in_array($role, [User::ROLE_ADMIN, User::ROLE_SUPER_ADMIN], true)) {
-                return Limit::perMinute(600)->by('auth:'.$userId);
+                return Limit::none();
             }
 
             if ($userId) {
-                return Limit::perMinute(300)->by('user:'.$userId);
+                return Limit::perMinute(200)->by('user:'.$userId);
             }
 
-            return Limit::perMinute(300)->by('ip:'.$request->ip());
+            return Limit::perMinute(200)->by('ip:'.$request->ip());
         });
     }
 }
