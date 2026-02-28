@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Tournament;
 use App\Models\User;
+use App\Support\MediaPath;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -34,7 +35,7 @@ class TimetableController extends Controller
         $tournaments = $tournamentsQuery->get();
 
         $buildSelectedTournamentQuery = function () use ($canViewAllTournaments) {
-            $query = Tournament::query()->with(['rounds.participants', 'rounds.scores', 'rounds.result.entries']);
+            $query = Tournament::query()->with(['rounds.participants.team', 'rounds.scores', 'rounds.result.entries']);
             if (!$canViewAllTournaments) {
                 $query->where('is_publicly_visible', true);
             }
@@ -55,6 +56,13 @@ class TimetableController extends Controller
 
         if ($selectedTournament) {
             $allRounds = $selectedTournament->rounds->map(function ($round) {
+                $round->setRelation('participants', $round->participants->map(function ($participant) {
+                    $iconPath = $participant->team?->icon_path ?: $participant->icon_snapshot_path;
+                    $participant->setAttribute('icon_url', MediaPath::toUrl($iconPath));
+
+                    return $participant;
+                }));
+
                 if (!$round->hide_public_scores) {
                     return $round;
                 }

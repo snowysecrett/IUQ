@@ -83,6 +83,20 @@ const statusLabel = (status) => {
     if (status === 'completed') return t('statusCompleted');
     return status || '-';
 };
+
+const scoreCardClass = (slot) => {
+    if (slot === 1) return 'border-red-200 bg-red-50/60';
+    if (slot === 2) return 'border-green-200 bg-green-50/60';
+    if (slot === 3) return 'border-blue-200 bg-blue-50/60';
+    return 'border-gray-200 bg-gray-50';
+};
+
+const scoreCardStripClass = (slot) => {
+    if (slot === 1) return 'bg-red-300/80';
+    if (slot === 2) return 'bg-green-300/80';
+    if (slot === 3) return 'bg-blue-300/80';
+    return 'bg-gray-300/80';
+};
 </script>
 
 <template>
@@ -151,11 +165,22 @@ const statusLabel = (status) => {
                                 <div class="grid gap-2 md:grid-cols-3">
                                     <div
                                         v-for="participant in round.participants"
-                                        :key="`${participant.id}-score`"
-                                        class="rounded border bg-gray-50 px-3 py-2"
+                                        :key="`slot-${participant.slot}-score`"
+                                        class="overflow-hidden rounded border px-3 py-2"
+                                        :class="scoreCardClass(participant.slot)"
                                     >
-                                        <div class="truncate text-xs font-medium uppercase tracking-wide text-gray-500">
-                                            {{ participant.display_name_snapshot || `${t('team')} ${participant.slot}` }}
+                                        <div class="-mx-3 -mt-2 mb-2 h-1.5" :class="scoreCardStripClass(participant.slot)" />
+                                        <div class="mb-1 flex items-start justify-between gap-2">
+                                            <div class="truncate text-xs font-medium uppercase tracking-wide text-gray-500">
+                                                {{ participant.display_name_snapshot || `${t('team')} ${participant.slot}` }}
+                                            </div>
+                                            <img
+                                                v-if="participant.icon_url"
+                                                :src="participant.icon_url"
+                                                :alt="participant.display_name_snapshot || `${t('team')} ${participant.slot}`"
+                                                class="h-7 w-7 shrink-0 rounded-sm object-contain"
+                                                loading="lazy"
+                                            />
                                         </div>
                                         <div class="mt-1 text-3xl font-bold leading-none text-gray-900">
                                             {{ scoreFor(round, participant.slot) }}
