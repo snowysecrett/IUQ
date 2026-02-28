@@ -129,14 +129,12 @@ const statusLabel = (status) => {
                         <col class="w-44" />
                         <col class="w-48" />
                         <col />
-                        <col />
                     </colgroup>
                     <thead>
                         <tr>
                             <th class="border px-2 py-1 text-left">{{ t('roundStatus') }}</th>
                             <th class="border px-2 py-1 text-left">{{ t('roundPhase') }}</th>
                             <th class="border px-2 py-1 text-left">{{ t('scheduled') }}</th>
-                            <th class="border px-2 py-1 text-left">{{ t('teams') }}</th>
                             <th class="border px-2 py-1 text-left">{{ t('scores') }}</th>
                         </tr>
                     </thead>
@@ -150,14 +148,20 @@ const statusLabel = (status) => {
                             <td class="border px-2 py-1">{{ phaseLabel(round.phase) }}</td>
                             <td class="border px-2 py-1">{{ formatScheduledAt(round.scheduled_start_at) }}</td>
                             <td class="border px-2 py-1">
-                                <span v-for="participant in round.participants" :key="participant.id" class="mr-2 inline-block rounded bg-gray-100 px-2 py-0.5">
-                                    {{ participant.display_name_snapshot || `${t('team')} ${participant.slot}` }}
-                                </span>
-                            </td>
-                            <td class="border px-2 py-1">
-                                <span v-for="participant in round.participants" :key="`${participant.id}-score`" class="mr-2 inline-block rounded bg-gray-100 px-2 py-0.5">
-                                    {{ participant.display_name_snapshot || `${t('team')} ${participant.slot}` }}: {{ scoreFor(round, participant.slot) }}
-                                </span>
+                                <div class="grid gap-2 md:grid-cols-3">
+                                    <div
+                                        v-for="participant in round.participants"
+                                        :key="`${participant.id}-score`"
+                                        class="rounded border bg-gray-50 px-3 py-2"
+                                    >
+                                        <div class="truncate text-xs font-medium uppercase tracking-wide text-gray-500">
+                                            {{ participant.display_name_snapshot || `${t('team')} ${participant.slot}` }}
+                                        </div>
+                                        <div class="mt-1 text-3xl font-bold leading-none text-gray-900">
+                                            {{ scoreFor(round, participant.slot) }}
+                                        </div>
+                                    </div>
+                                </div>
                             </td>
                         </tr>
                     </tbody>
