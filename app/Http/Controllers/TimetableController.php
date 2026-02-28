@@ -13,8 +13,6 @@ class TimetableController extends Controller
 {
     public function index(Request $request): Response
     {
-        Tournament::syncScheduledStatuses();
-
         $year = $request->integer('year');
         $tournamentId = $request->integer('tournament_id');
         $section = $request->query('section', 'upcoming');
@@ -40,8 +38,16 @@ class TimetableController extends Controller
 
             $tournaments = $tournamentsQuery->get();
 
-            $buildSelectedTournamentQuery = function () use ($canViewAllTournaments) {
-                $query = Tournament::query()->with(['rounds.participants.team', 'rounds.scores', 'rounds.result.entries']);
+            $buildSelectedTournamentQuery = function () use ($canViewAllTournaments, $year) {
+                $query = Tournament::query()
+                    ->with(['rounds.participants.team', 'rounds.scores', 'rounds.result.entries'])
+                    ->orderByDesc('year')
+                    ->orderBy('name');
+
+                if ($year) {
+                    $query->where('year', $year);
+                }
+
                 if (!$canViewAllTournaments) {
                     $query->where('is_publicly_visible', true);
                 }
@@ -49,9 +55,20 @@ class TimetableController extends Controller
                 return $query;
             };
 
-            $selectedTournament = $tournamentId
-                ? $buildSelectedTournamentQuery()->find($tournamentId)
-                : $buildSelectedTournamentQuery()->live()->first() ?? $tournaments->first();
+            $selectedTournament = null;
+            if ($tournamentId) {
+                $selectedTournament = $buildSelectedTournamentQuery()->find($tournamentId);
+            }
+            if (!$selectedTournament) {
+                $selectedTournament = $buildSelectedTournamentQuery()
+                    ->live()
+                    ->orderByDesc('scheduled_start_at')
+                    ->orderByDesc('id')
+                    ->first();
+            }
+            if (!$selectedTournament) {
+                $selectedTournament = $buildSelectedTournamentQuery()->first();
+            }
 
             $selectedRounds = collect();
             $sectionRoundCounts = [
