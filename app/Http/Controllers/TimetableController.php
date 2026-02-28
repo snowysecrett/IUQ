@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\Tournament;
 use App\Models\User;
 use App\Support\MediaPath;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -25,16 +24,7 @@ class TimetableController extends Controller
         $user = $request->user();
         $canViewAllTournaments = $user && in_array($user->role, [User::ROLE_ADMIN, User::ROLE_SUPER_ADMIN], true);
 
-        $cacheKey = implode(':', [
-            'timetable',
-            'v1',
-            $canViewAllTournaments ? 'admin' : 'public',
-            $year ?: 'all',
-            $tournamentId ?: 'auto',
-            $section,
-        ]);
-
-        $payload = Cache::remember($cacheKey, now()->addMinutes(2), function () use (
+        $buildPayload = function () use (
             $year,
             $tournamentId,
             $section,
@@ -141,8 +131,8 @@ class TimetableController extends Controller
                 'selectedRounds' => $selectedRounds,
                 'sectionRoundCounts' => $sectionRoundCounts,
             ];
-        });
+        };
 
-        return Inertia::render('Public/Timetable', $payload);
+        return Inertia::render('Public/Timetable', $buildPayload());
     }
 }
