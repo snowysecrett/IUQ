@@ -58,6 +58,7 @@ Route::middleware(['auth'])->group(function () {
             Route::post('/tournaments/clone-rules', [TournamentController::class, 'cloneRules'])->name('tournaments.clone-rules');
             Route::get('/tournaments/{tournament}', [TournamentController::class, 'show'])->name('tournaments.show');
             Route::patch('/tournaments/{tournament}', [TournamentController::class, 'update'])->name('tournaments.update');
+            Route::post('/tournaments/{tournament}/reset-pre-contest', [TournamentController::class, 'resetToPreContestState'])->name('tournaments.reset-pre-contest');
             Route::post('/tournaments/{tournament}/teams', [TournamentController::class, 'addTeam'])->name('tournaments.teams.add');
             Route::delete('/tournaments/{tournament}/teams/{team}', [TournamentController::class, 'removeTeam'])->name('tournaments.teams.remove');
 

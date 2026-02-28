@@ -493,6 +493,148 @@ class IuqSafetyChecksTest extends TestCase
         $this->assertSame($teamC->id, $clonedParticipants[2]->team_id);
     }
 
+    public function test_superadmin_can_reset_tournament_to_pre_contest_state_without_removing_rules(): void
+    {
+        $superAdmin = User::factory()->create([
+            'role' => User::ROLE_SUPER_ADMIN,
+            'approved_at' => now(),
+        ]);
+
+        $tournament = Tournament::query()->create([
+            'name' => 'Resettable',
+            'year' => 2033,
+            'status' => 'live',
+            'timezone' => 'UTC',
+        ]);
+
+        $teamA = Team::query()->create(['university_name' => 'A', 'team_name' => 'Team A']);
+        $teamB = Team::query()->create(['university_name' => 'B', 'team_name' => 'Team B']);
+
+        $sourceRound = Round::query()->create([
+            'tournament_id' => $tournament->id,
+            'name' => 'Source',
+            'teams_per_round' => 2,
+            'default_score' => 100,
+            'status' => 'completed',
+            'phase' => 'buzzer_normal',
+            'score_deltas' => [20, 10, -10],
+            'sort_order' => 1,
+        ]);
+        $targetRound = Round::query()->create([
+            'tournament_id' => $tournament->id,
+            'name' => 'Target',
+            'teams_per_round' => 2,
+            'default_score' => 150,
+            'status' => 'live',
+            'phase' => 'buzzer_fever',
+            'score_deltas' => [20, 10, -10],
+            'sort_order' => 2,
+        ]);
+
+        $sourceRound->participants()->create(['slot' => 1, 'team_id' => $teamA->id, 'display_name_snapshot' => 'Team A']);
+        $sourceRound->participants()->create(['slot' => 2, 'team_id' => $teamB->id, 'display_name_snapshot' => 'Team B']);
+        $sourceRound->scores()->create(['slot' => 1, 'score' => 201]);
+        $sourceRound->scores()->create(['slot' => 2, 'score' => 199]);
+
+        $targetRound->participants()->create(['slot' => 1, 'team_id' => $teamA->id, 'display_name_snapshot' => 'Team A']);
+        $targetRound->participants()->create(['slot' => 2, 'team_id' => $teamB->id, 'display_name_snapshot' => 'Team B']);
+        $targetRound->scores()->create(['slot' => 1, 'score' => 999]);
+        $targetRound->scores()->create(['slot' => 2, 'score' => 888]);
+
+        $rule = AdvancementRule::query()->create([
+            'tournament_id' => $tournament->id,
+            'source_type' => 'round',
+            'source_round_id' => $sourceRound->id,
+            'source_group_id' => null,
+            'source_rank' => 1,
+            'action_type' => 'advance',
+            'target_round_id' => $targetRound->id,
+            'target_slot' => 1,
+            'bonus_score' => 0,
+            'is_active' => true,
+            'priority' => 0,
+            'created_by_user_id' => $superAdmin->id,
+        ]);
+
+        $sourceRound->result()->create([
+            'finalized_by_user_id' => $superAdmin->id,
+            'finalized_at' => now(),
+            'is_overridden' => false,
+            'is_stale' => false,
+        ]);
+        $targetRound->result()->create([
+            'finalized_by_user_id' => $superAdmin->id,
+            'finalized_at' => now(),
+            'is_overridden' => false,
+            'is_stale' => false,
+        ]);
+
+        $sourceRound->actions()->create(['action_type' => 'start_competition', 'payload' => []]);
+        $targetRound->actions()->create(['action_type' => 'add_score', 'payload' => ['slot' => 1, 'delta' => 20]]);
+
+        AdvancementLog::query()->create([
+            'tournament_id' => $tournament->id,
+            'rule_id' => $rule->id,
+            'source_type' => 'round',
+            'source_round_id' => $sourceRound->id,
+            'target_round_id' => $targetRound->id,
+            'target_slot' => 1,
+            'status' => 'applied',
+            'message' => 'seed',
+        ]);
+
+        $this->actingAs($superAdmin)
+            ->post(route('admin.tournaments.reset-pre-contest', $tournament))
+            ->assertRedirect();
+
+        $sourceRound->refresh();
+        $targetRound->refresh();
+
+        $this->assertSame('draft', $sourceRound->status);
+        $this->assertSame('lightning', $sourceRound->phase);
+        $this->assertSame('draft', $targetRound->status);
+        $this->assertSame('lightning', $targetRound->phase);
+
+        $this->assertSame([100, 100], $sourceRound->scores()->orderBy('slot')->pluck('score')->all());
+        $this->assertSame([150, 150], $targetRound->scores()->orderBy('slot')->pluck('score')->all());
+
+        $targetParticipants = $targetRound->participants()->orderBy('slot')->get();
+        $this->assertNull($targetParticipants[0]->team_id); // dependent slot is cleared
+        $this->assertSame($teamB->id, $targetParticipants[1]->team_id); // non-dependent slot is kept
+
+        $this->assertSame(0, $tournament->advancementLogs()->count());
+        $this->assertSame(1, $tournament->advancementRules()->count());
+        $this->assertSame(0, $sourceRound->result()->count());
+        $this->assertSame(0, $targetRound->result()->count());
+    }
+
+    public function test_only_superadmin_can_reset_tournament_to_pre_contest_state(): void
+    {
+        $admin = User::factory()->create([
+            'role' => User::ROLE_ADMIN,
+            'approved_at' => now(),
+        ]);
+        $superAdmin = User::factory()->create([
+            'role' => User::ROLE_SUPER_ADMIN,
+            'approved_at' => now(),
+        ]);
+
+        $tournament = Tournament::query()->create([
+            'name' => 'Restricted Reset',
+            'year' => 2034,
+            'status' => 'draft',
+            'timezone' => 'UTC',
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.tournaments.reset-pre-contest', $tournament))
+            ->assertForbidden();
+
+        $this->actingAs($superAdmin)
+            ->post(route('admin.tournaments.reset-pre-contest', $tournament))
+            ->assertRedirect();
+    }
+
     public function test_only_superadmin_can_create_advancement_rules(): void
     {
         $admin = User::factory()->create([

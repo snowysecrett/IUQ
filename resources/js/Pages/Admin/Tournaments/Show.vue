@@ -187,6 +187,16 @@ const updateTournament = () => {
     });
 };
 
+const resetToPreContestState = () => {
+    if (!confirm(t('confirmResetPreContestState'))) {
+        return;
+    }
+
+    router.post(route('admin.tournaments.reset-pre-contest', props.tournament.id), {}, {
+        preserveScroll: true,
+    });
+};
+
 const addTeam = () => {
     addTeamForm.post(route('admin.tournaments.teams.add', props.tournament.id));
 };
@@ -461,7 +471,16 @@ const logTeamChange = (log) => `${log.before_team?.team_name || t('noTeam')} -> 
                         </div>
                     </div>
                 </fieldset>
-                <button class="mt-3 rounded border bg-gray-900 px-3 py-1 text-white">{{ t('saveTournament') }}</button>
+                <div class="mt-3 flex flex-wrap gap-2">
+                    <button class="rounded border bg-gray-900 px-3 py-1 text-white">{{ t('saveTournament') }}</button>
+                    <button
+                        type="button"
+                        class="rounded border border-red-400 bg-red-50 px-3 py-1 text-red-700"
+                        @click="resetToPreContestState"
+                    >
+                        {{ t('resetToPreContestState') }}
+                    </button>
+                </div>
             </form>
 
             <div class="rounded border bg-white p-4">

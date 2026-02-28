@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\AdvancementRule;
+use App\Models\Round;
 use App\Models\Team;
 use App\Models\Tournament;
 use App\Models\User;
@@ -303,6 +305,80 @@ class TournamentController extends Controller
         $tournament->update($data);
 
         return back()->with('success', 'Tournament updated.');
+    }
+
+    public function resetToPreContestState(Request $request, Tournament $tournament): RedirectResponse
+    {
+        abort_unless($request->user()?->role === User::ROLE_SUPER_ADMIN, 403);
+
+        DB::transaction(function () use ($tournament) {
+            $dependentSlots = [];
+            AdvancementRule::query()
+                ->where('tournament_id', $tournament->id)
+                ->where('is_active', true)
+                ->where('action_type', 'advance')
+                ->whereNotNull('target_round_id')
+                ->whereNotNull('target_slot')
+                ->get(['target_round_id', 'target_slot'])
+                ->each(function ($rule) use (&$dependentSlots) {
+                    $dependentSlots[(int) $rule->target_round_id][(int) $rule->target_slot] = true;
+                });
+
+            $rounds = Round::query()
+                ->where('tournament_id', $tournament->id)
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get();
+
+            foreach ($rounds as $round) {
+                $round->scores()->lockForUpdate()->get();
+                $round->participants()->lockForUpdate()->get();
+
+                $defaultScore = (int) ($round->default_score ?? 100);
+
+                for ($slot = 1; $slot <= (int) $round->teams_per_round; $slot++) {
+                    $round->scores()->updateOrCreate(
+                        ['slot' => $slot],
+                        ['score' => $defaultScore]
+                    );
+
+                    $isDependent = (bool) ($dependentSlots[(int) $round->id][(int) $slot] ?? false);
+                    if (!$isDependent) {
+                        continue;
+                    }
+
+                    $round->participants()->updateOrCreate(
+                        ['slot' => $slot],
+                        [
+                            'team_id' => null,
+                            'display_name_snapshot' => null,
+                            'icon_snapshot_path' => null,
+                            'assignment_mode' => 'auto',
+                            'assignment_source_type' => null,
+                            'assignment_source_id' => null,
+                            'assignment_source_rank' => null,
+                            'assignment_reason' => null,
+                            'assignment_updated_at' => now(),
+                        ]
+                    );
+                }
+
+                $round->actions()
+                    ->whereNull('rolled_back_at')
+                    ->lockForUpdate()
+                    ->update(['rolled_back_at' => now()]);
+
+                $round->result()?->delete();
+                $round->update([
+                    'status' => 'draft',
+                    'phase' => 'lightning',
+                ]);
+            }
+
+            $tournament->advancementLogs()->delete();
+        });
+
+        return back()->with('success', 'Tournament reset to pre-contest state.');
     }
 
     private function buildGroupSummaries(Tournament $tournament)
