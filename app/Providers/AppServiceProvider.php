@@ -26,14 +26,19 @@ class AppServiceProvider extends ServiceProvider
     {
         Vite::prefetch(concurrency: 3);
 
-        RateLimiter::for('timetable-public', function (Request $request) {
+        RateLimiter::for('public-site', function (Request $request) {
             $role = $request->user()?->role;
+            $userId = $request->user()?->id;
 
             if (in_array($role, [User::ROLE_ADMIN, User::ROLE_SUPER_ADMIN], true)) {
-                return Limit::perMinute(600)->by('auth:'.$request->user()->id);
+                return Limit::perMinute(600)->by('auth:'.$userId);
             }
 
-            return Limit::perMinute(20)->by('ip:'.$request->ip());
+            if ($userId) {
+                return Limit::perMinute(300)->by('user:'.$userId);
+            }
+
+            return Limit::perMinute(300)->by('ip:'.$request->ip());
         });
     }
 }

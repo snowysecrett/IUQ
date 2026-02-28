@@ -24,19 +24,21 @@ Route::get('/', function () {
         'laravelVersion' => Application::VERSION,
         'phpVersion' => PHP_VERSION,
     ]);
-});
+})->middleware('throttle:public-site');
 
-Route::post('/locale', [LocaleController::class, 'update'])->name('locale.update');
+Route::post('/locale', [LocaleController::class, 'update'])
+    ->middleware('throttle:public-site')
+    ->name('locale.update');
 
 Route::get('/timetable', [TimetableController::class, 'index'])
-    ->middleware('throttle:timetable-public')
+    ->middleware('throttle:public-site')
     ->name('timetable.index');
 
 Route::get('/dashboard', function () {
     return Inertia::render('Dashboard');
 })->middleware(['auth'])->name('dashboard');
 
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['auth', 'throttle:public-site'])->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
